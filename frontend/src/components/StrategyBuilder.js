@@ -12,11 +12,11 @@ const StrategyBuilder = ({ onStrategyChange }) => {
 
   const addRule = () => {
     setRules([...rules, {
-      leftIndicator: 'Close',
-      leftWindow: 10,
+      left_indicator: 'Close',
+      left_window: 10,
       comparison: '>',
-      rightIndicator: 'SMA',
-      rightWindow: 20,
+      right_indicator: 'SMA',
+      right_window: 20,
       action: 'Buy'
     }]);
   };
@@ -34,14 +34,14 @@ const StrategyBuilder = ({ onStrategyChange }) => {
       {rules.map((rule, index) => (
         <Space key={index} style={{ marginBottom: 16 }}>
           <Select
-            value={rule.leftIndicator}
-            onChange={(value) => updateRule(index, 'leftIndicator', value)}
+            value={rule.left_indicator}
+            onChange={(value) => updateRule(index, 'left_indicator', value)}
           >
             {indicators.map(ind => <Option key={ind} value={ind}>{ind}</Option>)}
           </Select>
           <InputNumber
-            value={rule.leftWindow}
-            onChange={(value) => updateRule(index, 'leftWindow', value)}
+            value={rule.left_window}
+            onChange={(value) => updateRule(index, 'left_window', value)}
           />
           <Select
             value={rule.comparison}
@@ -50,14 +50,14 @@ const StrategyBuilder = ({ onStrategyChange }) => {
             {comparisons.map(comp => <Option key={comp} value={comp}>{comp}</Option>)}
           </Select>
           <Select
-            value={rule.rightIndicator}
-            onChange={(value) => updateRule(index, 'rightIndicator', value)}
+            value={rule.right_indicator}
+            onChange={(value) => updateRule(index, 'right_indicator', value)}
           >
             {indicators.map(ind => <Option key={ind} value={ind}>{ind}</Option>)}
           </Select>
           <InputNumber
-            value={rule.rightWindow}
-            onChange={(value) => updateRule(index, 'rightWindow', value)}
+            value={rule.right_window}
+            onChange={(value) => updateRule(index, 'right_window', value)}
           />
           <Select
             value={rule.action}

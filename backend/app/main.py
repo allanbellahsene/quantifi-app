@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import backtest
+from app.utils.logging_config import main_logger
 
 app = FastAPI()
 
@@ -23,6 +24,7 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    main_logger.info("Application started")
 
 
 #from fastapi import FastAPI, HTTPException, Request

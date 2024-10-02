@@ -1,28 +1,27 @@
 # app/utils/logging_config.py
+
 import logging
 from logging.handlers import RotatingFileHandler
-from app.core.config import settings
+import os
 
-def setup_logging():
-    logger = logging.getLogger("quantifi")
-    logger.setLevel(logging.getLevelName(settings.LOG_LEVEL))
+def setup_logger(name, log_file, level=logging.INFO):
+    """Function to setup as many loggers as you want"""
 
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    
+    handler = RotatingFileHandler(log_file, maxBytes=10000000, backupCount=5)
+    handler.setFormatter(formatter)
 
-    # File Handler
-    file_handler = RotatingFileHandler(
-        settings.LOG_FILE, 
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5
-    )
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-
-    # Console Handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
 
     return logger
 
-logger = setup_logging()
+# Ensure log directory exists
+log_dir = "logs"
+os.makedirs(log_dir, exist_ok=True)
+
+# Setup loggers
+main_logger = setup_logger('main_logger', 'logs/main.log')
+backtest_logger = setup_logger('backtest_logger', 'logs/backtest.log')
