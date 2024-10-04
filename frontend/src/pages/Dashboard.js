@@ -4,9 +4,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Select, DatePicker, InputNumber, Button, Space, message } from 'antd';
 import StrategyBuilder from '../components/StrategyBuilder';
-//import { message } from 'antd';
 
-const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 const Dashboard = () => {
@@ -14,7 +12,6 @@ const Dashboard = () => {
   const [dateRange, setDateRange] = useState([]);
   const [strategy, setStrategy] = useState({ rules: [] });
   const [backtestResults, setBacktestResults] = useState(null);
-  const [loading, setLoading] = useState(false);
 
   const handleStrategyChange = (newRules) => {
     setStrategy({ ...strategy, rules: newRules });
@@ -55,39 +52,105 @@ const Dashboard = () => {
     }
   };
 
-  return (
-    <div>
-      <h1>QuantiFi Dashboard</h1>
-      <Space direction="vertical" size="large" style={{ display: 'flex' }}>
-        <Space>
-          <Select
-            value={symbol}
-            onChange={setSymbol}
-            style={{ width: 120 }}
-          >
-            <Option value="BTCUSDT">BTC/USDT</Option>
-            <Option value="ETHUSDT">ETH/USDT</Option>
-            {/* Add more trading pairs as needed */}
-          </Select>
-          <RangePicker onChange={setDateRange} />
-        </Space>
-        
-        <StrategyBuilder onStrategyChange={handleStrategyChange} />
-        
-        <Button onClick={runBacktest} loading={loading} type="primary">
-          Run Backtest
-        </Button>
 
-        {backtestResults && (
-          <div>
-            <h2>Backtest Results</h2>
-            <p>Total Return: {(backtestResults.metrics.total_return * 100).toFixed(2)}%</p>
-            <p>Sharpe Ratio: {backtestResults.metrics.sharpe_ratio.toFixed(2)}</p>
-            <p>Max Drawdown: {(backtestResults.metrics.max_drawdown * 100).toFixed(2)}%</p>
-            {/* You can add more detailed results or charts here */}
+  return (
+    <div className="min-h-screen bg-gray-900 text-white">
+      <header className="bg-gray-800 shadow-lg">
+        <div className="container mx-auto px-4 py-6">
+          <h1 className="text-3xl font-bold text-pink-500">QuantiFi Backtest Dashboard</h1>
+        </div>
+      </header>
+      <main className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 gap-8">
+          <div className="bg-gray-800 rounded-lg shadow-xl p-6">
+            <h2 className="text-2xl font-semibold mb-4 text-pink-500">Backtest Parameters</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Cryptocurrency</label>
+                <Select
+                  value={symbol}
+                  onChange={setSymbol}
+                  className="w-full"
+                  dropdownClassName="bg-gray-700"
+                >
+                  <Select.Option value="BTCUSDT">Bitcoin (BTC/USDT)</Select.Option>
+                  <Select.Option value="ETHUSDT">Ethereum (ETH/USDT)</Select.Option>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Date Range</label>
+                <RangePicker
+                  onChange={setDateRange}
+                  className="w-full bg-gray-700 border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Contract Type</label>
+                <Select
+                  defaultValue="spot"
+                  className="w-full"
+                  dropdownClassName="bg-gray-700"
+                >
+                  <Select.Option value="spot">Spot</Select.Option>
+                  <Select.Option value="futures">Futures</Select.Option>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Data Frequency</label>
+                <Select
+                  defaultValue="1d"
+                  className="w-full"
+                  dropdownClassName="bg-gray-700"
+                >
+                  <Select.Option value="1d">1d</Select.Option>
+                  <Select.Option value="4h">4h</Select.Option>
+                  <Select.Option value="1h">1h</Select.Option>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Fee (%)</label>
+                <InputNumber
+                  defaultValue={0.1}
+                  min={0}
+                  max={100}
+                  step={0.01}
+                  className="w-full bg-gray-700 border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Slippage (%)</label>
+                <InputNumber
+                  defaultValue={0.05}
+                  min={0}
+                  max={100}
+                  step={0.01}
+                  className="w-full bg-gray-700 border-gray-600"
+                />
+              </div>
+            </div>
+            <div className="mt-6">
+              <StrategyBuilder onStrategyChange={handleStrategyChange} />
+            </div>
+            <Button
+              onClick={runBacktest}
+              className="mt-6 w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Run Backtest
+            </Button>
           </div>
-        )}
-      </Space>
+          <div className="bg-gray-800 rounded-lg shadow-xl p-6">
+            <h2 className="text-2xl font-semibold mb-4 text-pink-500">Backtest Results</h2>
+            {backtestResults ? (
+              <div>
+                {/* Add your backtest results visualization here */}
+                <p>Results will be displayed here after running a backtest.</p>
+              </div>
+            ) : (
+              <p className="text-gray-400">Run a backtest to see results</p>
+            )}
+          </div>
+        </div>
+      </main>
     </div>
   );
 };
