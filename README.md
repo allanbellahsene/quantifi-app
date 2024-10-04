@@ -70,6 +70,27 @@ By streamlining the strategy research workflow, QuantiFi empowers traders to exp
    npm install
    ```
 
+### Prototype Setup
+
+1. Navigate to the prototype directory:
+   ```
+   cd ../prototype
+   ```
+2. Install dependencies:
+   ```
+   npm install recharts lucide-react @radix-ui/react-tabs @radix-ui/react-select @radix-ui/react-slot
+   ```
+3. Install Tailwind and its dependencies:
+   ```
+   npm install recharts -D tailwindcss postcss autoprefixer
+   npx tailwindcss init -p
+   ```
+4. Run the development server:
+   ```
+   npm start
+   ```
+5. View the prototype: Open your web browser and navigate to http://localhost:3000.
+   
 ## Running the Application
 
 1. Start the backend server:
