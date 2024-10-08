@@ -1,30 +1,49 @@
-#backend/app/main.py
-
+import socket
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import backtest
-from app.utils.logging_config import main_logger
+from app.api.backtest_new import backtest, BacktestInput
 
-app = FastAPI()
+app = FastAPI(title="QuantiFi API", version="1.0.0")
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Your React app's address
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(backtest.router, prefix="/api/v1", tags=["backtest"])
-
 @app.get("/")
 async def root():
     return {"message": "Welcome to QuantiFi API"}
 
+@app.get("/api/test")
+async def test():
+    return {"message": "Backend is connected"}
+
+@app.post("/api/backtest")
+async def backtest_endpoint(input: BacktestInput):
+    return await backtest(input)
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-    main_logger.info("Application started")
+
+    # Define the host and port you want to use
+    host = "0.0.0.0"
+    port = 8000
+
+    # Check if the port is already in use
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        is_port_in_use = s.connect_ex((host, port)) == 0
+
+    if is_port_in_use:
+        print(f"Port {port} is already in use. Please stop the process using it or choose a different port.")
+    else:
+        # Start the server if the port is available
+        uvicorn.run(app, host=host, port=port)
+
+
 
 
 #from fastapi import FastAPI, HTTPException, Request

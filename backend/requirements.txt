@@ -12,3 +12,6 @@ passlib[bcrypt]
 python-multipart
 sqlalchemy
 pydantic-settings
+yfinance
+matplotlib
+scipy

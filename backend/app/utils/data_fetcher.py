@@ -4,6 +4,7 @@ from datetime import datetime
 import logging
 from functools import wraps
 import time
+import yfinance as yf
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -69,3 +70,16 @@ def fetch_binance_data(symbol: str, start_date: str, end_date: str, interval='1d
 # Function to fetch BTC data for regime filter
 def fetch_btc_data(start_date: str, end_date: str, interval='1d'):
     return fetch_binance_data('BTCUSDT', start_date, end_date, interval)
+
+def download_yf_data(symbol: str, start: str, end: str) -> pd.DataFrame:
+    """
+    Download price data from yahoo finance for the given symbol and BTC-USD for the specified date range.
+
+    :param symbol: The ticker symbol to download data for
+    :param start: Start date for the data
+    :param end: End date for the data
+    :return: DataFrame containing price data for the symbol and BTC-USD
+    """
+    df: pd.DataFrame = yf.download(symbol, start=start, end=end)[['Open', 'High', 'Low', 'Close', 'Volume']]
+    btc: pd.DataFrame = yf.download('BTC-USD', start=start, end=end)[['Close']].rename(columns={'Close': 'BTC-USD'})
+    return df.merge(btc, right_index=True, left_index=True, how='left')
