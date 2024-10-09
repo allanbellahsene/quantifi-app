@@ -5,6 +5,8 @@ import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import EquityCurveChart from './EquityCurveChart';
 import MetricsTable from './MetricsTable';
+import DrawdownChart from './DrawdownChart';
+import RollingSharpeChart from './RollingSharpeChart';
 
 const INDICATORS = [
   { name: 'Open', params: [] },
@@ -18,8 +20,9 @@ const INDICATORS = [
   { name: 'Rolling_Low', params: ['period'] },
   { name: 'MA_trend', params: ['ma_window', 'return_window'] },
 ];
-const COMPARISON_OPERATORS = ['<', '<=', '>', '>=', '==', '!='];
-const LOGICAL_OPERATORS = ['and', 'or'];
+
+//const COMPARISON_OPERATORS = ['<', '<=', '>', '>=', '==', '!='];
+//const LOGICAL_OPERATORS = ['and', 'or'];
 
 const QuantiFiBacktestingLab = () => {
   const [asset, setAsset] = useState('BTC-USD');
@@ -44,32 +47,47 @@ const QuantiFiBacktestingLab = () => {
     }
   };
 
+  //useEffect(() => {
+   // if (backtestResults && backtestResults.equityCurve) {
+    //  const processedData = backtestResults.equityCurve.map(item => ({
+     //   ...item,
+      //  date: dayjs(item.date).format('YYYY-MM-DD')
+ //     }));
+  //    console.log('Processed data:', processedData);
+//      console.log('Date range:', processedData[0].date, 'to', processedData[processedData.length - 1].date);
+//      setBacktestResults(prev => ({ ...prev, equityCurve: processedData }));
+//    }
+//  }, [backtestResults]);
+
   useEffect(() => {
-    if (backtestResults && backtestResults.equityCurve) {
-      const processedData = backtestResults.equityCurve.map(item => ({
-        ...item,
-        date: dayjs(item.date).format('YYYY-MM-DD')
-      }));
-      console.log('Processed data:', processedData);
-      console.log('Date range:', processedData[0].date, 'to', processedData[processedData.length - 1].date);
-      setBacktestResults(prev => ({ ...prev, equityCurve: processedData }));
+    if (backtestResults) {
+      if (backtestResults.equityCurve) {
+        const processedEquityCurve = backtestResults.equityCurve.map(item => ({
+          ...item,
+          Date: dayjs(item.Date).format('YYYY-MM-DD')
+        }));
+        setBacktestResults(prev => ({ ...prev, equityCurve: processedEquityCurve }));
+      }
+      if (backtestResults.drawdown) {
+        const processedDrawdown = backtestResults.drawdown.map(item => ({
+          ...item,
+          Date: dayjs(item.Date).format('YYYY-MM-DD')
+        }));
+        setBacktestResults(prev => ({ ...prev, drawdown: processedDrawdown }));
+      }
+      if (backtestResults.rollingSharpe) {
+        const processedRollingSharpe = backtestResults.rollingSharpe.map(item => ({
+          ...item,
+          Date: dayjs(item.Date).format('YYYY-MM-DD')
+        }));
+        setBacktestResults(prev => ({ ...prev, rollingSharpe: processedRollingSharpe }));
+      }
     }
   }, [backtestResults]);
 
   useEffect(() => {
     console.log('Strategies updated:', strategies);
   }, [strategies]);
-
-  const formatMetric = (value, decimals = 2, isPercentage = false) => {
-    if (value === null || value === undefined) {
-      return 'N/A';
-    }
-    if (typeof value !== 'number') {
-      return 'Invalid';
-    }
-    const formattedValue = isPercentage ? (value * 100).toFixed(decimals) : value.toFixed(decimals);
-    return isPercentage ? `${formattedValue}%` : formattedValue;
-  };
   
   const addStrategy = () => {
     setStrategies([...strategies, {
@@ -154,7 +172,7 @@ const QuantiFiBacktestingLab = () => {
     setError(null);
 
     try {
-      const response = await fetch('/api/backtest', {
+      const response = await fetch('http://localhost:8001/api/backtest', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -286,7 +304,20 @@ const QuantiFiBacktestingLab = () => {
             startDate={startDate}
             endDate={endDate}
           />
-
+          <DrawdownChart
+            data={backtestResults.drawdown}
+            strategies={strategies.filter(s => s.active)}
+            assetName={asset}
+            startDate={startDate}
+            endDate={endDate}
+            />
+          <RollingSharpeChart
+            data={backtestResults.rollingSharpe}
+            strategies={strategies.filter(s => s.active)}
+            assetName={asset}
+            startDate={startDate}
+            endDate={endDate}
+          />
         {backtestResults.metrics && (
             <MetricsTable metrics={backtestResults.metrics} />
             )}

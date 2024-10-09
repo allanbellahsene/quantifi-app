@@ -5,6 +5,7 @@ import numpy as np
 from app.utils.utils import numpy_to_python
 from typing import List, Dict
 from app.services.backtest.strategies import Strategy, add_indicators
+from app.services.backtest.metrics import calculate_metrics, metrics_table
 
 
 def run_backtest(df: pd.DataFrame, strategies: List[Strategy], fees: float, slippage: float) -> pd.DataFrame:
@@ -52,127 +53,23 @@ def run_backtest(df: pd.DataFrame, strategies: List[Strategy], fees: float, slip
     # Calculate drawdowns
     df['strategy_drawdown'] = 1 - df['cumulative_equity'] / df['cumulative_equity'].cummax()
     df['market_drawdown'] = 1 - df['cumulative_market_equity'] / df['cumulative_market_equity'].cummax()
+    # Calculate drawdowns for each individual strategy
+    for strategy in strategies:
+        if strategy.active:
+            df[f'{strategy.name}_drawdown'] = 1 - df[f'{strategy.name}_cumulative_equity'] / df[f'{strategy.name}_cumulative_equity'].cummax()
+    print("Calculated individual strategy drawdowns")
     print("Calculated drawdowns")
+    # Calculate rolling Sharpe ratios
+    window = 30  # rolling window size in days
+    df['strategy_rolling_sharpe'] = df['strategy_returns'].rolling(window).apply(lambda x: (x.mean() / x.std()) * np.sqrt(252) if x.std() != 0 else 0)
+    df['market_rolling_sharpe'] = df['returns'].rolling(window).apply(lambda x: (x.mean() / x.std()) * np.sqrt(252) if x.std() != 0 else 0)
+    for strategy in strategies:
+        if strategy.active:
+            df[f'{strategy.name}_rolling_sharpe'] = df[f'{strategy.name}_returns'].rolling(window).apply(
+                lambda x: (x.mean() / x.std()) * np.sqrt(365) if x.std() != 0 else 0)
+    print("Calculated rolling Sharpe ratios")
 
     print("Backtest completed")
 
     return df
 
-
-
-def calculate_metrics(returns: pd.Series, positions: pd.Series, initial_value: float = 10000) -> Dict[str, float]:
-    """Calculate a comprehensive set of performance metrics."""
-    cum_returns = (1 + returns).cumprod()
-    total_return = cum_returns.iloc[-1] - 1
-    annualized_return = (1 + total_return) ** (365 / len(returns)) - 1
-    
-    volatility = returns.std() * np.sqrt(365)
-    sharpe_ratio = annualized_return / volatility if volatility != 0 else 0
-
-    drawdowns =  1 - cum_returns.div(cum_returns.cummax())
-    max_drawdown = drawdowns.max()
-    avg_drawdown = drawdowns.mean()
-    
-    positive_returns = returns[returns > 0]
-    negative_returns = returns[returns < 0]
-    
-    win_rate = len(positive_returns) / len(returns)
-    loss_rate = len(negative_returns) / len(returns)
-    avg_win = positive_returns.mean() if len(positive_returns) > 0 else 0
-    avg_loss = negative_returns.mean() if len(negative_returns) > 0 else 0
-    profit_factor = abs(positive_returns.sum() / negative_returns.sum()) if negative_returns.sum() != 0 else np.inf
-
-    sortino_ratio = annualized_return / (np.sqrt(365) * negative_returns.std()) if len(negative_returns) > 0 else np.inf
-    
-    calmar_ratio = annualized_return / max_drawdown if max_drawdown != 0 else np.inf
-
-    #returns.index = pd.to_datetime(returns.index)
-    
-    try:
-        monthly_returns = returns.resample('M').apply(lambda x: (x + 1).prod() - 1)
-        best_month = monthly_returns.max()
-        worst_month = monthly_returns.min()
-    except Exception as e:
-        print(f'Error calculating monthly returns: {e}')
-        best_month = None
-        worst_month = None
-
-    # New metrics
-    start_date = returns.index[0]
-    end_date = returns.index[-1]
-    end_value = initial_value * (1 + total_return)
-    max_value = initial_value * cum_returns.max()
-    min_value = initial_value * cum_returns.min()
-    
-    trades = positions.diff().abs()
-    nb_trades = trades[trades != 0].count()
-    
-    exposure = (positions != 0).mean()
-    
-    # Additional metrics for systematic traders
-    max_consecutive_wins = (returns > 0).groupby((returns <= 0).cumsum()).cumsum().max()
-    max_consecutive_losses = (returns < 0).groupby((returns >= 0).cumsum()).cumsum().max()
-    
-    avg_trade_duration = positions.groupby((positions != positions.shift()).cumsum()).size().mean()
-
-    metrics = {
-        "Start Date": None,
-        "End Date": None,
-        "Initial Value": initial_value,
-        "End Value": None,
-        "Max Value": None,
-        "Min Value": None,
-        "Total Return": None,
-        "Annualized Return": None,
-        "Volatility": None,
-        "Sharpe Ratio": None,
-        "Max Drawdown": None,
-        "Average Drawdown": None,
-        "Win Rate": None,
-        "Loss Rate": None,
-        "Average Win": None,
-        "Average Loss": None,
-        "Profit Factor": None,
-        "Sortino Ratio": None,
-        "Calmar Ratio": None,
-        "Best Month": None,
-        "Worst Month": None,
-        "Number of Trades": None,
-        "Exposure (%)": None,
-        "Max Consecutive Wins": None,
-        "Max Consecutive Losses": None,
-        "Average Trade Duration (days)": None
-    }
-
-    try:
-        metrics = {
-            "Start Date": start_date,
-            "End Date": end_date,
-            "Initial Value": initial_value,
-            "End Value": end_value,
-            "Max Value": max_value,
-            "Min Value": min_value,
-            "Total Return": total_return,
-            "Annualized Return": annualized_return,
-            "Volatility": volatility,
-            "Sharpe Ratio": sharpe_ratio,
-            "Max Drawdown": max_drawdown,
-            "Average Drawdown": avg_drawdown,
-            "Win Rate": win_rate,
-            "Loss Rate": loss_rate,
-            "Average Win": avg_win,
-            "Average Loss": avg_loss,
-            "Profit Factor": profit_factor,
-            "Sortino Ratio": sortino_ratio,
-            "Calmar Ratio": calmar_ratio,
-            "Number of Trades": nb_trades,
-            "Exposure (%)": exposure * 100,
-            "Max Consecutive Wins": max_consecutive_wins,
-            "Max Consecutive Losses": max_consecutive_losses,
-            "Average Trade Duration (days)": avg_trade_duration
-        }
-
-    except Exception as e:
-        print(f"Error calculating metrics: {str(e)}")
-
-    return {k: numpy_to_python(v) for k, v in metrics.items()}

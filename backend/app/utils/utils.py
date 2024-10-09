@@ -13,3 +13,12 @@ def numpy_to_python(obj: Any) -> Any:
         return obj.strftime('%Y-%m-%d')
     else:
         return obj
+
+def nan_to_null(obj):
+    if isinstance(obj, float) and np.isnan(obj):
+        return None
+    elif isinstance(obj, dict):
+        return {k: nan_to_null(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [nan_to_null(v) for v in obj]
+    return obj

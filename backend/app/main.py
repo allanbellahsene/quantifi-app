@@ -1,14 +1,14 @@
 import socket
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.backtest_new import backtest, BacktestInput
+from app.api.backtest import backtest, BacktestInput
 
 app = FastAPI(title="QuantiFi API", version="1.0.0")
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     # Define the host and port you want to use
     host = "0.0.0.0"
-    port = 8000
+    port = 8001
 
     # Check if the port is already in use
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
