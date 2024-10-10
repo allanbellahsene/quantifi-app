@@ -1,12 +1,16 @@
+// App.js
 import React from 'react';
+import { ThemeProvider } from '@mui/material/styles';
+import theme from './Theme'; // Ensure the path to your theme is correct
 import QuantiFiBacktestingLab from './components/QuantiFiBacktestingLab';
 
 function App() {
   return (
-    <div className="App">
-      <h1>QuantiFi Platform</h1>
-      <QuantiFiBacktestingLab />
-    </div>
+    <ThemeProvider theme={theme}>
+      <div className="App">
+        <QuantiFiBacktestingLab />
+      </div>
+    </ThemeProvider>
   );
 }
 

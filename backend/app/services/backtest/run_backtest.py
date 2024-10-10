@@ -1,11 +1,9 @@
-#app.services.backtest_new.py
+#app.services.baktest.run_backtest.py
 
 import pandas as pd
 import numpy as np
-from app.utils.utils import numpy_to_python
-from typing import List, Dict
+from typing import List
 from app.services.backtest.strategies import Strategy, add_indicators
-from app.services.backtest.metrics import calculate_metrics, metrics_table
 
 
 def run_backtest(df: pd.DataFrame, strategies: List[Strategy], fees: float, slippage: float) -> pd.DataFrame:
@@ -60,7 +58,7 @@ def run_backtest(df: pd.DataFrame, strategies: List[Strategy], fees: float, slip
     print("Calculated individual strategy drawdowns")
     print("Calculated drawdowns")
     # Calculate rolling Sharpe ratios
-    window = 30  # rolling window size in days
+    window = 90  # rolling window size in days
     df['strategy_rolling_sharpe'] = df['strategy_returns'].rolling(window).apply(lambda x: (x.mean() / x.std()) * np.sqrt(252) if x.std() != 0 else 0)
     df['market_rolling_sharpe'] = df['returns'].rolling(window).apply(lambda x: (x.mean() / x.std()) * np.sqrt(252) if x.std() != 0 else 0)
     for strategy in strategies:

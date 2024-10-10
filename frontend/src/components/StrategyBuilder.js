@@ -1,113 +1,188 @@
-import React, { useState } from 'react';
-import { Button, Select, InputNumber, Space } from 'antd';
+// StrategyBuilder.js
+import React from 'react';
+import {
+  Typography,
+  Box,
+  Paper,
+  TextField,
+  Grid,
+  IconButton,
+  Button,
+  Divider,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
+  InputAdornment,
+  Tooltip,
+} from '@mui/material';
+import { Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
+import RuleComponent from './RuleComponent'; 
 
-const { Option } = Select;
-
-const indicators = ['Close', 'Open', 'High', 'Low', 'Volume', 'BTC', 'BTC_MA', 'Coin_MA', 'SMA', 'EMA', 'Rolling High', 'Rolling Low'];
-const comparisons = ['>', '<', '==', '>=', '<='];
-const actions = ['Buy', 'Sell'];
-
-const StrategyBuilder = ({ onStrategyChange }) => {
-  const [rules, setRules] = useState([]);
-
-  const addRule = () => {
-    setRules([...rules, {
-      left_indicator: 'Close',
-      left_window: 1,
-      comparison: '>=',
-      right_indicator: 'Rolling High',
-      right_window: 10,
-      action: 'Buy'
-    }]);
-  };
-
-  const updateRule = (index, field, value) => {
-    const newRules = [...rules];
-    newRules[index][field] = value;
-    setRules(newRules);
-    onStrategyChange(newRules);
-  };
-
+const StrategyBuilder = ({
+  strategies,
+  setStrategies,
+  INDICATORS,
+  updateStrategy,
+  addStrategy,
+  deleteStrategy,
+  updateRule,
+  updateIndicatorParam,
+  removeRule,
+  addRule,
+}) => {
   return (
-    <div className="space-y-4">
-      <h3 className="text-xl font-semibold text-pink-500">Custom Rule Builder</h3>
-      <div className="bg-gray-700 rounded-lg p-4">
-        <div className="mb-2">
-          <span className="text-sm font-medium">Number of rules</span>
-          <InputNumber
-            value={rules.length}
-            onChange={(value) => {
-              const newRules = [...rules];
-              if (value > newRules.length) {
-                while (newRules.length < value) {
-                  addRule();
+    <Paper elevation={3} sx={{ mb: 4, p: 4, borderRadius: 2 }}>
+      <Typography variant="h5" gutterBottom>
+        Strategy Builder
+      </Typography>
+      <Divider sx={{ mb: 3 }} />
+
+      {strategies.map((strategy, strategyIndex) => (
+        <Paper
+          key={strategyIndex}
+          elevation={2}
+          sx={{ p: 3, mb: 4, position: 'relative' }}
+        >
+          <IconButton
+            onClick={() => deleteStrategy(strategyIndex)}
+            color="error"
+            sx={{ position: 'absolute', top: 8, right: 8 }}
+          >
+            <DeleteIcon />
+          </IconButton>
+
+          {/* Strategy Details */}
+          <Typography variant="h6" gutterBottom>
+            Strategy {strategyIndex + 1}
+          </Typography>
+          <Grid container spacing={3} sx={{ mb: 2 }}>
+            <Grid item xs={12} md={4}>
+              <TextField
+                label="Strategy Name"
+                placeholder="Enter strategy name"
+                value={strategy.name}
+                onChange={(e) =>
+                  updateStrategy(strategyIndex, 'name', e.target.value)
                 }
-              } else {
-                newRules.length = value;
-              }
-              setRules(newRules);
-              onStrategyChange(newRules);
-            }}
-            min={0}
-            className="ml-2 w-20 bg-gray-600 text-white"
-          />
-        </div>
-        {rules.map((rule, index) => (
-          <div key={index} className="mb-4 p-2 bg-gray-800 rounded">
-            <Space wrap className="mb-2">
-              <Select
-                value={rule.left_indicator}
-                onChange={(value) => updateRule(index, 'left_indicator', value)}
-                className="w-32"
-                dropdownClassName="bg-gray-700"
-              >
-                {indicators.map(ind => <Option key={ind} value={ind}>{ind}</Option>)}
-              </Select>
-              <InputNumber
-                value={rule.left_window}
-                onChange={(value) => updateRule(index, 'left_window', value)}
-                className="w-20 bg-gray-600 text-white"
+                variant="outlined"
+                fullWidth
               />
-              <Select
-                value={rule.comparison}
-                onChange={(value) => updateRule(index, 'comparison', value)}
-                className="w-20"
-                dropdownClassName="bg-gray-700"
-              >
-                {comparisons.map(comp => <Option key={comp} value={comp}>{comp}</Option>)}
-              </Select>
-              <Select
-                value={rule.right_indicator}
-                onChange={(value) => updateRule(index, 'right_indicator', value)}
-                className="w-32"
-                dropdownClassName="bg-gray-700"
-              >
-                {indicators.map(ind => <Option key={ind} value={ind}>{ind}</Option>)}
-              </Select>
-              <InputNumber
-                value={rule.right_window}
-                onChange={(value) => updateRule(index, 'right_window', value)}
-                className="w-20 bg-gray-600 text-white"
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <TextField
+                label="Allocation (%)"
+                type="number"
+                placeholder="e.g., 100"
+                value={strategy.allocation}
+                onChange={(e) =>
+                  updateStrategy(
+                    strategyIndex,
+                    'allocation',
+                    parseFloat(e.target.value)
+                  )
+                }
+                variant="outlined"
+                fullWidth
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">%</InputAdornment>
+                  ),
+                }}
               />
-              <Select
-                value={rule.action}
-                onChange={(value) => updateRule(index, 'action', value)}
-                className="w-24"
-                dropdownClassName="bg-gray-700"
-              >
-                {actions.map(act => <Option key={act} value={act}>{act}</Option>)}
-              </Select>
-            </Space>
-          </div>
-        ))}
-      </div>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth variant="outlined">
+                <InputLabel>Position Type</InputLabel>
+                <Select
+                  label="Position Type"
+                  value={strategy.positionType}
+                  onChange={(e) =>
+                    updateStrategy(
+                      strategyIndex,
+                      'positionType',
+                      e.target.value
+                    )
+                  }
+                >
+                  <MenuItem value="long">Long</MenuItem>
+                  <MenuItem value="short">Short</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+
+          {/* Entry Rules */}
+          <Box sx={{ mt: 4 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Entry Rules
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            {strategy.entryRules &&
+              strategy.entryRules.map((rule, ruleIndex) => (
+                <RuleComponent
+                  key={ruleIndex}
+                  rule={rule}
+                  ruleIndex={ruleIndex}
+                  strategyIndex={strategyIndex}
+                  ruleType="entryRules"
+                  updateRule={updateRule}
+                  updateIndicatorParam={updateIndicatorParam}
+                  removeRule={removeRule}
+                  indicators={INDICATORS}
+                />
+              ))}
+            <Button
+              onClick={() => addRule(strategyIndex, 'entryRules')}
+              startIcon={<AddIcon />}
+              variant="outlined"
+              sx={{ mt: 2 }}
+            >
+              Add Entry Rule
+            </Button>
+          </Box>
+
+          {/* Exit Rules */}
+          <Box sx={{ mt: 4 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Exit Rules
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            {strategy.exitRules &&
+              strategy.exitRules.map((rule, ruleIndex) => (
+                <RuleComponent
+                  key={ruleIndex}
+                  rule={rule}
+                  ruleIndex={ruleIndex}
+                  strategyIndex={strategyIndex}
+                  ruleType="exitRules"
+                  updateRule={updateRule}
+                  updateIndicatorParam={updateIndicatorParam}
+                  removeRule={removeRule}
+                  indicators={INDICATORS}
+                />
+              ))}
+            <Button
+              onClick={() => addRule(strategyIndex, 'exitRules')}
+              startIcon={<AddIcon />}
+              variant="outlined"
+              sx={{ mt: 2 }}
+            >
+              Add Exit Rule
+            </Button>
+          </Box>
+        </Paper>
+      ))}
+
       <Button
-        onClick={addRule}
-        className="bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 px-4 rounded"
+        onClick={addStrategy}
+        variant="contained"
+        color="primary"
+        startIcon={<AddIcon />}
       >
-        Add Rule
+        Add Strategy
       </Button>
-    </div>
+    </Paper>
   );
 };
 
