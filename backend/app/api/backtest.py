@@ -1,4 +1,4 @@
-#app.api.backtest_new.py
+#app.api.backtest.py
 from fastapi import HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Optional
@@ -8,6 +8,7 @@ import traceback
 from app.utils.utils import numpy_to_python, nan_to_null
 import json
 from app.utils.data_fetcher import download_yf_data
+from pydantic import validator
 
 class RuleInput(BaseModel):
     leftIndicator: str
@@ -26,8 +27,26 @@ class StrategyInput(BaseModel):
     entryRules: List[RuleInput]
     exitRules: List[RuleInput]
     active: bool = True
-    position_size: float = 1.0
     regime_filter: Optional[str] = None
+    position_size_method: str = 'fixed'
+    fixed_position_size: Optional[float] = None    
+    volatility_target: Optional[float] = None       
+    volatility_lookback: Optional[int] = 30      
+    volatility_buffer: Optional[float] = None       
+    max_leverage: float = 1.0
+
+    @validator('fixed_position_size', always=True)
+    def validate_fixed_position_size(cls, v, values):
+        if values.get('position_size_method') == 'fixed' and v is None:
+            raise ValueError('fixed_position_size must be provided when position_size_method is "fixed"')
+        return v
+
+    @validator('volatility_target', always=True)
+    def validate_volatility_target(cls, v, values):
+        if values.get('position_size_method') == 'volatility_target' and v is None:
+            raise ValueError('volatility_target must be provided when position_size_method is "volatility_target"')
+        return v
+
 
 class BacktestInput(BaseModel):
     symbol: str
@@ -54,6 +73,23 @@ async def backtest(input: BacktestInput):
                 
                 print(f"Entry rules: {entry_rule_str}")
                 print(f"Exit rules: {exit_rule_str}")
+
+                # Initialize variables
+                fixed_position_size = None
+                volatility_target = None
+
+                # Handle position sizing based on the method
+                if s.position_size_method == 'fixed':
+                    if s.fixed_position_size is None:
+                        raise ValueError('fixed_position_size must be provided when position_size_method is "fixed"')
+                    fixed_position_size = s.fixed_position_size * s.allocation / 100
+                elif s.position_size_method == 'volatility_target':
+                    if s.volatility_target is None:
+                        raise ValueError('volatility_target must be provided when position_size_method is "volatility_target"')
+                    # Apply allocation to volatility_target
+                    volatility_target = s.volatility_target * s.allocation / 100
+                else:
+                    raise ValueError(f"Unknown position_size_method: {s.position_size_method}")
                 
                 strategy = Strategy(
                     name=s.name,
@@ -61,9 +97,17 @@ async def backtest(input: BacktestInput):
                     exit_rules=exit_rule_str,
                     position_type=s.positionType,
                     active=s.active,
-                    position_size=s.position_size * s.allocation / 100,
-                    regime_filter=s.regime_filter
+                    regime_filter=s.regime_filter,
+                    position_size_method=s.position_size_method,
+                    fixed_position_size=fixed_position_size,
+                    volatility_target=volatility_target,
+                    volatility_lookback=s.volatility_lookback,
+                    volatility_buffer=s.volatility_buffer,
+                    max_leverage=s.max_leverage,
                 )
+
+                #### NEED TO TAKE INTO ACCOUNT ALLOCATION WHEN POSITION SIZE IS NOT FIXED
+
                 strategies.append(strategy)
                 print(f"Strategy {s.name} created successfully")
             except Exception as e:
@@ -74,7 +118,7 @@ async def backtest(input: BacktestInput):
         print(f"Running backtest with {len(strategies)} strategies")
         df_result = run_backtest(df, strategies, input.fees, input.slippage)
         print("Backtest completed successfully")
-        df_result.index = df_result.index.strftime('%Y-%m-%d')
+        #df_result.index = df_result.index.strftime('%Y-%m-%d')
         
         result = metrics_table(df_result, strategies)
 
@@ -95,17 +139,26 @@ async def backtest(input: BacktestInput):
 def construct_rule_string(rules: List[RuleInput]) -> str:
     try:
         rule_strings = []
-        for r in rules:
-            left = f"{r.leftIndicator}({','.join(r.leftParams.values())})" if r.leftParams else r.leftIndicator
+        for index, r in enumerate(rules):
+            # Filter out empty parameter values
+            left_params = [v for v in r.leftParams.values() if v]
+            left = f"{r.leftIndicator}({','.join(left_params)})" if left_params else r.leftIndicator
+            
             if r.useRightIndicator:
-                right = f"{r.rightIndicator}({','.join(r.rightParams.values())})" if r.rightParams else r.rightIndicator
+                right_params = [v for v in r.rightParams.values() if v]
+                right = f"{r.rightIndicator}({','.join(right_params)})" if right_params else r.rightIndicator
             else:
                 right = r.rightValue if r.rightValue is not None else ""
-            rule_strings.append(f"{left} {r.operator} {right}")
-        return " and ".join(rule_strings)
+            
+            rule_str = f"{left} {r.operator} {right}"
+            if index > 0:
+                rule_str = f"{r.logicalOperator} {rule_str}"
+            rule_strings.append(rule_str)
+        return " ".join(rule_strings)
     except Exception as e:
         print(f"Error in construct_rule_string: {str(e)}")
         print(traceback.format_exc())
         raise
+
 
 

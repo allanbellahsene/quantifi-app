@@ -93,7 +93,7 @@ const DrawdownChart = ({ data, strategies, assetName, startDate, endDate }) => {
             <Legend wrapperStyle={{ paddingTop: '20px' }} />
             <Line
               type="monotone"
-              dataKey="strategy_drawdown"
+              dataKey="portfolio_drawdown"
               name="Portfolio"
               stroke={theme.palette.primary.main}
               strokeWidth={3}

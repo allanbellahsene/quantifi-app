@@ -1,5 +1,4 @@
-// RuleComponent.js
-
+// Import necessary components
 import React from 'react';
 import {
   Box,
@@ -71,7 +70,7 @@ const RuleComponent = ({
         <Grid item xs={12} md={ruleIndex > 0 ? 10 : 12}>
           <Grid container spacing={2} alignItems="center">
             {/* Left Indicator */}
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={3}>
               <FormControl fullWidth variant="outlined">
                 <InputLabel>Left Indicator</InputLabel>
                 <Select
@@ -103,7 +102,7 @@ const RuleComponent = ({
                   <Grid item xs={12} md={2} key={param}>
                     <TextField
                       label={param}
-                      value={rule.leftParams?.[param] || ''}
+                      value={rule.leftParams?.[param] || (param === 'series' ? 'Close' : '')}
                       onChange={(e) =>
                         updateIndicatorParam(
                           strategyIndex,
@@ -167,7 +166,7 @@ const RuleComponent = ({
             {/* Right Indicator or Value */}
             {rule.useRightIndicator ? (
               <>
-                <Grid item xs={12} md={4}>
+                <Grid item xs={12} md={3}>
                   <FormControl fullWidth variant="outlined">
                     <InputLabel>Right Indicator</InputLabel>
                     <Select
@@ -198,7 +197,7 @@ const RuleComponent = ({
                       <Grid item xs={12} md={2} key={param}>
                         <TextField
                           label={param}
-                          value={rule.rightParams?.[param] || ''}
+                          value={rule.rightParams?.[param] || (param === 'series' ? 'Close' : '')}
                           onChange={(e) =>
                             updateIndicatorParam(
                               strategyIndex,

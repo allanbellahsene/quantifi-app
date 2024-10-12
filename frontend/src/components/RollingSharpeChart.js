@@ -90,7 +90,7 @@ const RollingSharpeChart = ({ data, strategies, assetName, startDate, endDate })
             <Legend wrapperStyle={{ paddingTop: '20px' }} />
             <Line
               type="monotone"
-              dataKey="strategy_rolling_sharpe"
+              dataKey="portfolio_rolling_sharpe"
               name="Portfolio"
               stroke={theme.palette.primary.main}
               strokeWidth={3}

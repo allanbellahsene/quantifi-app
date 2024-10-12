@@ -47,7 +47,10 @@ class Indicator:
         object.__setattr__(self, 'params', tuple(self.params))
 
     def __str__(self):
-        return f"{self.name}({', '.join(map(str, self.params))})"
+        if self.params:
+            return f"{self.name}({', '.join(map(str, self.params))})"
+        else:
+            return f"{self.name}"
 
 @dataclass
 class Rule:
@@ -119,7 +122,7 @@ class CompositeRule:
 def parse_indicator(indicator_str: str) -> Indicator:
     print(f"Parsing indicator: {indicator_str}")
     if indicator_str in ['Open', 'High', 'Low', 'Close', 'Volume', 'BTC-USD']:
-        return Indicator(indicator_str, (indicator_str,))
+        return Indicator(indicator_str, ())
     match = re.match(r'([\w-]+)\((.*)\)', indicator_str)
     if not match:
         raise ValueError(f"Invalid indicator format: {indicator_str}")
@@ -243,6 +246,7 @@ def generate_signals(df: pd.DataFrame, entry_signal: CompositeRule, exit_signal:
     entry: np.ndarray = entry_signal.evaluate(df)
     exit: np.ndarray = exit_signal.evaluate(df)
 
+
     position: np.ndarray = np.zeros(len(df), dtype=int)
     in_position: np.ndarray = np.zeros(len(df), dtype=bool)
 
@@ -268,8 +272,13 @@ class Strategy:
     exit_rules: str
     position_type: Literal['long', 'short']
     active: bool = True
-    position_size: float = 1.0
     regime_filter: Optional[str] = None
+    position_size_method: Literal['fixed', 'volatility_target'] = 'fixed'
+    fixed_position_size: Optional[float] = None
+    volatility_target: Optional[float] = None
+    volatility_lookback: Optional[int] = 30
+    volatility_buffer: Optional[float] = None  # Buffer percentage for volatility adjustments
+    max_leverage: float = 1.0
 
     def __post_init__(self):
         print(f"Initializing strategy: {self.name}")
@@ -290,6 +299,33 @@ class Strategy:
             regime = self.regime_filter.evaluate(df)
             signals = signals * regime
         return signals
+    
+    def calculate_position_sizes(self, df: pd.DataFrame) -> pd.Series:
+        if self.position_size_method == 'fixed':
+            if self.fixed_position_size is None:
+                raise ValueError('fixed_position_size must be set when position_size_method is "fixed"')
+            position_sizes = pd.Series(self.fixed_position_size, df.index)
+            if self.fixed_position_size > self.max_leverage:
+                print(f'Fixed position size is larger than max allowed leverage. Please re-adjust.')
+        elif self.position_size_method == 'volatility_target':
+            returns = df['Close'].pct_change()
+            realized_vol = returns.ewm(span=self.volatility_lookback).std().shift() * np.sqrt(365)
+            volatility_estimate = realized_vol.ewm(span=self.volatility_lookback).mean().shift()
+            position_sizes = (self.volatility_target / 100)  / volatility_estimate #because frontend receives percentage
+            # Apply buffer to adjust position sizes when volatility deviates
+            if self.volatility_buffer is not None:
+                deviation = (volatility_estimate.shift() - self.volatility_target).abs() / self.volatility_target
+                adjust_condition = deviation > (self.volatility_buffer / 100) #frontend receives percentage
+                # Adjust position sizes only when deviation exceeds buffer
+                position_sizes = position_sizes.where(adjust_condition, np.nan)
+                # Forward-fill the position sizes when no adjustment is needed
+                position_sizes.ffill(inplace=True)
+        else:
+            raise ValueError(f"Unknown position sizing method: {self.position_size_method}")
+    
+        position_sizes = position_sizes.clip(upper=self.max_leverage)
+        position_sizes = position_sizes.fillna(1) #fillna with 1 - it's fine because what ultimately decides if we have a position is the signal column. So if that column is zero this wont do anything.
+        return position_sizes
 
 def add_indicators(df: pd.DataFrame, strategies: List[Strategy]) -> pd.DataFrame:
     """Add the required indicators to the DataFrame based on the strategies"""
