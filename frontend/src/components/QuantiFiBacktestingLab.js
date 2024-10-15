@@ -4,15 +4,12 @@ import React, { useState, useEffect } from 'react';
 import {
   Button, 
   Typography} from '@mui/material';
-import dayjs from 'dayjs';
-import EquityCurveChart from './EquityCurveChart';
 import MetricsTable from './MetricsTable';
-import DrawdownChart from './DrawdownChart';
-import RollingSharpeChart from './RollingSharpeChart';
 import { styled } from '@mui/material/styles';
 import BacktestingParameters from './BacktestingParameters';
 import StrategyBuilder from './StrategyBuilder';
-
+import TradesTable from './TradesTable';
+import ChartSystem from './ChartSystem';
 
 
 // Create a PrimaryButton component
@@ -47,39 +44,13 @@ const QuantiFiBacktestingLab = () => {
   const [asset, setAsset] = useState('BTC-USD');
   const [startDate, setStartDate] = useState('2020-01-01');
   const [endDate, setEndDate] = useState('2024-10-09');
-  const [fees, setFees] = useState(0.001);
-  const [slippage, setSlippage] = useState(0.001);
+  const [fees, setFees] = useState(0.5);
+  const [slippage, setSlippage] = useState(0.1);
   const [strategies, setStrategies] = useState([]);
   const [backtestResults, setBacktestResults] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   
-
-  useEffect(() => {
-    if (backtestResults) {
-      if (backtestResults.equityCurve) {
-        const processedEquityCurve = backtestResults.equityCurve.map(item => ({
-          ...item,
-          Date: dayjs(item.Date).format('YYYY-MM-DD')
-        }));
-        setBacktestResults(prev => ({ ...prev, equityCurve: processedEquityCurve }));
-      }
-      if (backtestResults.drawdown) {
-        const processedDrawdown = backtestResults.drawdown.map(item => ({
-          ...item,
-          Date: dayjs(item.Date).format('YYYY-MM-DD')
-        }));
-        setBacktestResults(prev => ({ ...prev, drawdown: processedDrawdown }));
-      }
-      if (backtestResults.rollingSharpe) {
-        const processedRollingSharpe = backtestResults.rollingSharpe.map(item => ({
-          ...item,
-          Date: dayjs(item.Date).format('YYYY-MM-DD')
-        }));
-        setBacktestResults(prev => ({ ...prev, rollingSharpe: processedRollingSharpe }));
-      }
-    }
-  }, [backtestResults]);
 
   useEffect(() => {
     console.log('Strategies updated:', strategies);
@@ -272,6 +243,7 @@ const QuantiFiBacktestingLab = () => {
 
       const data = await response.json();
       console.log('Backtest API response:', data);
+      console.log('Trades data:', data.trades);
       setBacktestResults(data);
     } catch (err) {
       setError(err.message);
@@ -322,22 +294,10 @@ const QuantiFiBacktestingLab = () => {
 
       {backtestResults && (
         <div>
-          <EquityCurveChart 
-            data={backtestResults.equityCurve} 
-            strategies={strategies.filter(s => s.active)}
-            assetName={asset}
-            startDate={startDate}
-            endDate={endDate}
-          />
-          <DrawdownChart
-            data={backtestResults.drawdown}
-            strategies={strategies.filter(s => s.active)}
-            assetName={asset}
-            startDate={startDate}
-            endDate={endDate}
-            />
-          <RollingSharpeChart
-            data={backtestResults.rollingSharpe}
+          <ChartSystem
+            equityCurveData={backtestResults.equityCurve || []}
+            drawdownData={backtestResults.drawdown || []}
+            rollingSharpeData={backtestResults.rollingSharpe || []}
             strategies={strategies.filter(s => s.active)}
             assetName={asset}
             startDate={startDate}
@@ -345,6 +305,9 @@ const QuantiFiBacktestingLab = () => {
           />
         {backtestResults.metrics && (
             <MetricsTable metrics={backtestResults.metrics} />
+            )}
+        {backtestResults.trades && (
+            <TradesTable trades={backtestResults.trades} />
             )}
             </div>
         )}

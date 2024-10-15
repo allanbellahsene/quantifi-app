@@ -9,6 +9,9 @@ from app.services.backtest.strategies import Strategy, add_indicators
 
 def run_backtest(df: pd.DataFrame, strategies: List[Strategy], fees: float, slippage: float) -> pd.DataFrame:
     """Run a backtest for the given strategies"""
+    #### FEES AND SLIPPAGE ARE PERCENTAGE INPUTS.
+    fees=fees/100
+    slippage=slippage/100
     print("Starting backtest...")
 
     # Add indicators to the DataFrame
@@ -21,11 +24,17 @@ def run_backtest(df: pd.DataFrame, strategies: List[Strategy], fees: float, slip
             print(f"Generating signals for strategy: {strategy.name}")
             df[f'{strategy.name}_signal'] = strategy.generate_signals(df)
             df[f'{strategy.name}_position_size'] = strategy.calculate_position_sizes(df)
-            df[f'{strategy.name}_position'] = df[f'{strategy.name}_signal'].shift() * df[f'{strategy.name}_position_size'] * strategy.position_type
+            print('position_type:')
+            print(strategy.position_type)
+            df[f'{strategy.name}_position'] = df[f'{strategy.name}_signal'].shift() * df[f'{strategy.name}_position_size']
+            print(df.loc[df[f'{strategy.name}_position']!=0])
             df[f'{strategy.name}_returns'] = df[f'{strategy.name}_position'].shift() * df['Close'].pct_change() - \
+                                             df[f'{strategy.name}_position'].diff().abs() * (fees + slippage)
+            df[f'{strategy.name}_log_returns'] = df[f'{strategy.name}_position'].shift() * np.log(df['Close']/df['Close'].shift()) - \
                                              df[f'{strategy.name}_position'].diff().abs() * (fees + slippage)
             df[f'{strategy.name}_cumulative_equity'] = (1 + df[f'{strategy.name}_returns']).cumprod()
             df[f'{strategy.name}_cumulative_returns'] = df[f'{strategy.name}_cumulative_equity'] - 1
+            df[f'{strategy.name}_cumulative_log_equity'] = (df[f'{strategy.name}_log_returns']).cumsum()
 
     # Combine signals from all active strategies
     df['total_position'] = sum(
@@ -36,16 +45,21 @@ def run_backtest(df: pd.DataFrame, strategies: List[Strategy], fees: float, slip
 
     # Calculate overall portfolio returns
     df['returns'] = df['Close'].pct_change()
+    df['log_returns'] = np.log(df['Close']/df['Close'].shift())
     df['gross_portfolio_returns'] = df['total_position'].shift() * df['returns']
+    df['gross_portfolio_log_returns'] = df['total_position'].shift() * df['log_returns']
 
     # Apply fees and slippage
     df['trades'] = df['total_position'].diff().abs()
     df['transaction_costs'] = df['trades'] * (fees + slippage)
     df['portfolio_returns'] = df['gross_portfolio_returns'] - df['transaction_costs']
+    df['portfolio_log_returns'] = df['gross_portfolio_log_returns'] - df['transaction_costs']
     print("Calculated returns and applied fees and slippage")
 
     # Calculate cumulative returns
     df['cumulative_equity'] = (1 + df['portfolio_returns']).cumprod()
+    df['cumulative_log_equity'] = (df['portfolio_log_returns']).cumsum()
+    df['cumulative_log_market_equity'] = (df['log_returns']).cumsum()
     df['cumulative_market_equity'] = (1 + df['returns']).cumprod()
     df['cumulative_returns'] = df['cumulative_equity'] - 1
     df['cumulative_market_returns'] = df['cumulative_market_equity'] - 1
@@ -71,6 +85,8 @@ def run_backtest(df: pd.DataFrame, strategies: List[Strategy], fees: float, slip
     print("Calculated rolling Sharpe ratios")
 
     print("Backtest completed")
+
+    df.to_csv('backtest.csv')
 
     return df
 

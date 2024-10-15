@@ -110,7 +110,6 @@ const BacktestingParameters = ({
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
-                    <PercentIcon color="action" />
                   </InputAdornment>
                 ),
               }}
@@ -126,7 +125,6 @@ const BacktestingParameters = ({
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
-                    <PercentIcon color="action" />
                   </InputAdornment>
                 ),
               }}

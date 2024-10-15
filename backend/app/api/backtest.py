@@ -9,6 +9,7 @@ from app.utils.utils import numpy_to_python, nan_to_null
 import json
 from app.utils.data_fetcher import download_yf_data
 from pydantic import validator
+from app.services.backtest.trade_analysis import analyze_all_trades
 
 class RuleInput(BaseModel):
     leftIndicator: str
@@ -63,6 +64,7 @@ async def backtest(input: BacktestInput):
         
         df = download_yf_data(input.symbol, input.start, input.end)
         print(f"Downloaded data for {input.symbol} from {input.start} to {input.end}")
+        print(df.head())
         
         strategies = []
         for s in input.strategies:
@@ -119,10 +121,21 @@ async def backtest(input: BacktestInput):
         df_result = run_backtest(df, strategies, input.fees, input.slippage)
         print("Backtest completed successfully")
         #df_result.index = df_result.index.strftime('%Y-%m-%d')
+
+        print(df_result)
         
         result = metrics_table(df_result, strategies)
 
         result = json.loads(json.dumps(result, default=numpy_to_python))
+        trades_df = analyze_all_trades(df_result, strategies).fillna(0)
+        trades_list = trades_df.to_dict('records')
+        result['trades'] = trades_list
+        # Print for debugging
+        print("Trades data:")
+        print(result['trades'][:5])  # Print first 5 trades for brevity
+        print(f"Number of trades: {len(result['trades'])}")
+        print(f"Columns in each trade: {list(result['trades'][0].keys())}")
+
 
         print("Result prepared for return")
         #print(f"Date range in result: {result['equityCurve'][0]['date']} to {result['equityCurve'][-1]['date']}")

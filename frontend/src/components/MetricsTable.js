@@ -1,5 +1,9 @@
-import React, { useEffect } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Typography, Grid, useTheme } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { 
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
+  Paper, Typography, Grid, useTheme, Accordion, AccordionSummary, AccordionDetails 
+} from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const formatValue = (value) => {
   if (value === undefined || value === null) return 'N/A';
@@ -19,35 +23,45 @@ const MetricSection = ({ title, metrics, strategies, metricsData }) => {
   }
 
   return (
-    <TableContainer component={Paper} sx={{ marginTop: 2, marginBottom: 2 }}>
-      <Typography variant="h6" sx={{ padding: 2, fontWeight: 'bold' }}>{title}</Typography>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: theme.palette.primary.main, color: theme.palette.common.white }}>Metric</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: theme.palette.primary.main, color: theme.palette.common.white }}>Portfolio</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: theme.palette.primary.main, color: theme.palette.common.white }}>Benchmark</TableCell>
-            {strategies.map((strategy) => (
-              <TableCell key={strategy} align="right" sx={{ fontWeight: 'bold', backgroundColor: theme.palette.primary.main, color: theme.palette.common.white }}>{strategy}</TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {metrics.map((metric) => (
-            <TableRow key={metric} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
-              <TableCell component="th" scope="row">{metric}</TableCell>
-              <TableCell align="right">{formatValue(metricsData?.Portfolio?.[metric])}</TableCell>
-              <TableCell align="right">{formatValue(metricsData?.Benchmark?.[metric])}</TableCell>
-              {strategies.map((strategy) => (
-                <TableCell key={strategy} align="right">
-                  {formatValue(metricsData?.[strategy]?.[metric])}
-                </TableCell>
+    <Accordion defaultExpanded>
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon />}
+        aria-controls={`${title}-content`}
+        id={`${title}-header`}
+      >
+        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{title}</Typography>
+      </AccordionSummary>
+      <AccordionDetails>
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold', backgroundColor: theme.palette.primary.main, color: theme.palette.common.white }}>Metric</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: theme.palette.primary.main, color: theme.palette.common.white }}>Portfolio</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: theme.palette.primary.main, color: theme.palette.common.white }}>Benchmark</TableCell>
+                {strategies.map((strategy) => (
+                  <TableCell key={strategy} align="right" sx={{ fontWeight: 'bold', backgroundColor: theme.palette.primary.main, color: theme.palette.common.white }}>{strategy}</TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {metrics.map((metric) => (
+                <TableRow key={metric} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
+                  <TableCell component="th" scope="row">{metric}</TableCell>
+                  <TableCell align="right">{formatValue(metricsData?.Portfolio?.[metric])}</TableCell>
+                  <TableCell align="right">{formatValue(metricsData?.Benchmark?.[metric])}</TableCell>
+                  {strategies.map((strategy) => (
+                    <TableCell key={strategy} align="right">
+                      {formatValue(metricsData?.[strategy]?.[metric])}
+                    </TableCell>
+                  ))}
+                </TableRow>
               ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </AccordionDetails>
+    </Accordion>
   );
 };
 
@@ -73,10 +87,10 @@ const MetricsTable = ({ metrics }) => {
       <Grid item xs={12}>
         <MetricSection title="General Information" metrics={generalMetrics} strategies={strategies} metricsData={metrics} />
       </Grid>
-      <Grid item xs={12} md={6}>
+      <Grid item xs={12}>
         <MetricSection title="Return Metrics" metrics={returnMetrics} strategies={strategies} metricsData={metrics} />
       </Grid>
-      <Grid item xs={12} md={6}>
+      <Grid item xs={12}>
         <MetricSection title="Drawdown Metrics" metrics={drawdownMetrics} strategies={strategies} metricsData={metrics} />
       </Grid>
       <Grid item xs={12}>
@@ -89,4 +103,4 @@ const MetricsTable = ({ metrics }) => {
   );
 };
 
-export default MetricsTable;
+export default React.memo(MetricsTable);
