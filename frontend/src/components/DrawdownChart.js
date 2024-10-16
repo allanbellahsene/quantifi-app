@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Typography, FormGroup, FormControlLabel, Switch, useTheme } from '@mui/material';
+import { FormGroup, FormControlLabel, Switch, useTheme } from '@mui/material';
 import dayjs from 'dayjs';
 
 const DrawdownChart = ({ data, strategies, assetName }) => {

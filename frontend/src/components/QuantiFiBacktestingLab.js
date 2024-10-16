@@ -298,6 +298,7 @@ const QuantiFiBacktestingLab = () => {
             equityCurveData={backtestResults.equityCurve || []}
             drawdownData={backtestResults.drawdown || []}
             rollingSharpeData={backtestResults.rollingSharpe || []}
+            signals={backtestResults.signals || {}}
             strategies={strategies.filter(s => s.active)}
             assetName={asset}
             startDate={startDate}
