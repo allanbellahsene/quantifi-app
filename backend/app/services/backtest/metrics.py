@@ -242,9 +242,11 @@ def metrics_table(df_result: pd.DataFrame, strategies: List[Any]) -> Dict[str, A
         Dict[str, Any]: Dictionary containing equity curves, drawdowns, rolling Sharpe ratios, and metrics.
     """
     # Prepare columns for equity curves
-    equity_columns = ['cumulative_log_equity', 'cumulative_log_market_equity'] + [
+    equity_columns = ['cumulative_log_equity', 'cumulative_log_market_equity', 'cumulative_equity',
+                      'cumulative_market_equity'] + [
         f'{s.name}_cumulative_log_equity' for s in strategies if s.active
-    ]
+    ] + [f'{s.name}_cumulative_equity' for s in strategies if s.active]
+    
     equity_curve = df_result[equity_columns].reset_index().rename(columns={'index': 'Date'}).to_dict('records')
 
     # Prepare columns for drawdowns

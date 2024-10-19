@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Card, CardContent, Typography, FormGroup, FormControlLabel, Switch, useTheme } from '@mui/material';
+import { Card, CardContent, Typography, FormGroup, FormControlLabel, Switch, Checkbox, Box, useTheme } from '@mui/material';
 import dayjs from 'dayjs';
 
 const EquityCurveChart = ({ data, strategies, assetName, startDate, endDate }) => {
     const [showBenchmark, setShowBenchmark] = useState(true);
     const [visibleStrategies, setVisibleStrategies] = useState({});
+    const [useLogEquity, setUseLogEquity] = useState(false); // Default is off
     const theme = useTheme();
 
     const toggleStrategy = (strategyName) => {
@@ -14,7 +15,9 @@ const EquityCurveChart = ({ data, strategies, assetName, startDate, endDate }) =
 
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#B19CD9', '#FF90B3'];
 
-    const formatYAxis = (value) => `${value.toFixed(0)}`;
+    const formatYAxis = (value) => {
+        return useLogEquity ? value.toFixed(0) : value.toFixed(2);
+    };
     
     const formatXAxis = (dateStr) => {
         const date = dayjs(dateStr);
@@ -46,39 +49,55 @@ const EquityCurveChart = ({ data, strategies, assetName, startDate, endDate }) =
     const yAxisDomain = useMemo(() => {
         if (!data || data.length === 0) return [0, 'auto'];
         const allValues = data.flatMap(item => [
-            item.cumulative_log_equity,
-            item.cumulative_log_market_equity,
-            ...strategies.map(s => item[`${s.name}_cumulative_log_equity`])
+            useLogEquity ? item.cumulative_log_equity : item.cumulative_equity,
+            useLogEquity ? item.cumulative_log_market_equity : item.cumulative_market_equity,
+            ...strategies.map(s => item[`${s.name}_${useLogEquity ? 'cumulative_log_equity' : 'cumulative_equity'}`])
         ].filter(Boolean));
         const minValue = Math.floor(Math.min(...allValues));
         const maxValue = Math.ceil(Math.max(...allValues));
         return [minValue, maxValue];
-    }, [data, strategies]);
+    }, [data, strategies, useLogEquity]);
 
     return (
         <Card elevation={3} sx={{ marginTop: 4, marginBottom: 4 }}>
             <CardContent>
                 <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
+                    {/* Add any title or additional content here if needed */}
                 </Typography>
-                <FormGroup row sx={{ marginBottom: 2 }}>
-                    <FormControlLabel
-                        control={<Switch checked={showBenchmark} onChange={() => setShowBenchmark(!showBenchmark)} color="primary" />}
-                        label="Benchmark"
-                    />
-                    {strategies.map((strategy, index) => (
+                {/* Align toggles and checkbox on opposite sides */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                    {/* Left side: Benchmark and Strategy Toggles */}
+                    <FormGroup row>
                         <FormControlLabel
-                            key={strategy.name}
-                            control={
-                                <Switch
-                                    checked={visibleStrategies[strategy.name] || false}
-                                    onChange={() => toggleStrategy(strategy.name)}
-                                    color="primary"
-                                />
-                            }
-                            label={strategy.name}
+                            control={<Switch checked={showBenchmark} onChange={() => setShowBenchmark(!showBenchmark)} color="primary" />}
+                            label="Buy & Hold"
                         />
-                    ))}
-                </FormGroup>
+                        {strategies.map((strategy, index) => (
+                            <FormControlLabel
+                                key={strategy.name}
+                                control={
+                                    <Switch
+                                        checked={visibleStrategies[strategy.name] || false}
+                                        onChange={() => toggleStrategy(strategy.name)}
+                                        color="primary"
+                                    />
+                                }
+                                label={strategy.name}
+                            />
+                        ))}
+                    </FormGroup>
+                    {/* Right side: Log Returns Checkbox */}
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={useLogEquity}
+                                onChange={() => setUseLogEquity(!useLogEquity)}
+                                color="primary"
+                            />
+                        }
+                        label="Log Returns"
+                    />
+                </Box>
                 <ResponsiveContainer width="100%" height={500}>
                     <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
@@ -101,18 +120,21 @@ const EquityCurveChart = ({ data, strategies, assetName, startDate, endDate }) =
                             stroke={theme.palette.text.secondary}
                             tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
                             label={{ 
-                                value: 'Log Equity', 
+                                value: useLogEquity ? 'Log Equity' : 'Equity', 
                                 angle: -90, 
                                 position: 'insideLeft',
                                 style: { textAnchor: 'middle', fill: theme.palette.text.primary, fontSize: 14 }
                             }}
-                            ticks={Array.from({length: yAxisDomain[1] - yAxisDomain[0] + 1}, (_, i) => i + yAxisDomain[0])}
+                            ticks={Array.from(
+                                { length: yAxisDomain[1] - yAxisDomain[0] + 1 }, 
+                                (_, i) => i + yAxisDomain[0]
+                            )}
                         />
                         <Tooltip content={<CustomTooltip />} />
                         <Legend wrapperStyle={{ paddingTop: '20px' }} />
                         <Line
                             type="monotone"
-                            dataKey="cumulative_log_equity"
+                            dataKey={useLogEquity ? "cumulative_log_equity" : "cumulative_equity"}
                             name="Portfolio"
                             stroke={theme.palette.primary.main}
                             strokeWidth={2}
@@ -122,8 +144,8 @@ const EquityCurveChart = ({ data, strategies, assetName, startDate, endDate }) =
                         {showBenchmark && (
                             <Line
                                 type="monotone"
-                                dataKey="cumulative_log_market_equity"
-                                name="Benchmark"
+                                dataKey={useLogEquity ? "cumulative_log_market_equity" : "cumulative_market_equity"}
+                                name="Buy & Hold"
                                 stroke={theme.palette.secondary.main}
                                 strokeWidth={2}
                                 dot={false}
@@ -135,7 +157,7 @@ const EquityCurveChart = ({ data, strategies, assetName, startDate, endDate }) =
                                 <Line
                                     key={strategy.name}
                                     type="monotone"
-                                    dataKey={`${strategy.name}_cumulative_log_equity`}
+                                    dataKey={`${strategy.name}_${useLogEquity ? 'cumulative_log_equity' : 'cumulative_equity'}`}
                                     name={strategy.name}
                                     stroke={colors[index % colors.length]}
                                     strokeDasharray="5 5"
@@ -153,3 +175,4 @@ const EquityCurveChart = ({ data, strategies, assetName, startDate, endDate }) =
 };
 
 export default React.memo(EquityCurveChart);
+

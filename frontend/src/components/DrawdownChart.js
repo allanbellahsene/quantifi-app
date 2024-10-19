@@ -48,7 +48,7 @@ const DrawdownChart = ({ data, strategies, assetName }) => {
       <FormGroup row sx={{ marginBottom: 2 }}>
         <FormControlLabel
           control={<Switch checked={showBenchmark} onChange={() => setShowBenchmark(!showBenchmark)} color="primary" />}
-          label="Benchmark"
+          label="Buy & Hold"
         />
         {strategies.map((strategy, index) => (
           <FormControlLabel
@@ -103,7 +103,7 @@ const DrawdownChart = ({ data, strategies, assetName }) => {
             <Line
               type="monotone"
               dataKey="market_drawdown"
-              name="Benchmark"
+              name="Buy & Hold"
               stroke={theme.palette.secondary.main}
               strokeWidth={3}
               dot={false}

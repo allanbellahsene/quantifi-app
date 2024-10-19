@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantiFi - Backtester</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="top-nav">
+        <div class="logo">Quanti<span>Fi</span></div>
+        <div class="nav-items">
+            <div class="nav-item active">Backtester</div>
+            <div class="nav-item">Profile</div>
+            <div class="nav-item">Research</div>
+            <div class="nav-item">Screener</div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="container">
+        <!-- Upper Panel -->
+        <section class="upper-panel">
+            <!-- Left Section: Backtest Inputs with collapse button -->
+            <aside class="left-section">
+                <h2 class="section-title">Backtest Inputs <span class="collapse-btn"><i class="fas fa-angle-left"></i></span></h2>
+                <div class="input-section">
+                    <!-- Row 1: Asset Symbol Selection -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="asset-symbol">Asset Symbol</label>
+                            <div class="custom-select">
+                                <select id="asset-symbol" class="input-field">
+                                    <option value="" disabled selected>Select Asset</option>
+                                    <option value="BTCUSD">BTC/USD</option>
+                                    <option value="ETHUSD">ETH/USD</option>
+                                    <option value="BNBUSD">BNB/USD</option>
+                                </select>
+                                <span class="select-icon"><i class="fas fa-chevron-down"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Row 2: Start Date and End Date -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="start-date">Start Date</label>
+                            <input type="date" id="start-date" class="input-field">
+                        </div>
+                        <div class="form-group">
+                            <label for="end-date">End Date</label>
+                            <input type="date" id="end-date" class="input-field">
+                        </div>
+                    </div>
+                    <!-- Row 3: Fees and Slippage -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="fees">Fees (%)</label>
+                            <input type="number" id="fees" class="input-field" placeholder="0.0">
+                        </div>
+                        <div class="form-group">
+                            <label for="slippage">Slippage (%)</label>
+                            <input type="number" id="slippage" class="input-field" placeholder="0.0">
+                        </div>
+                    </div>
+                </div>
+            </aside>
+            <!-- Right Section: Strategy Builder -->
+            <section class="right-section">
+                <!-- Section Title -->
+                <h2 class="section-title">Strategy Builder</h2>
+
+                <!-- Strategy Header -->
+                <div class="strategy-header">
+                    <div class="strategy-tabs" id="strategy-tabs">
+                        <!-- Strategy Tabs as before -->
+                        <div class="strategy-tab active">
+                            <span class="tab-name">Strategy 1</span>
+                            <button class="tab-dropdown-btn"><i class="fas fa-chevron-down"></i></button>
+                            <!-- Dropdown Menu -->
+                            <div class="tab-dropdown-menu">
+                                <button class="tab-dropdown-item" data-action="rename">Rename</button>
+                                <button class="tab-dropdown-item" data-action="duplicate">Duplicate</button>
+                                <button class="tab-dropdown-item" data-action="delete">Delete</button>
+                            </div>
+                        </div>
+                        <div class="strategy-tab-add" id="add-strategy-tab"><i class="fas fa-plus"></i></div>
+                    </div>
+                    <!-- Strategy Actions -->
+                    <div class="strategy-actions">
+                        <button id="duplicate-strategy" title="Duplicate Strategy"><i class="fas fa-copy"></i></button>
+                        <button id="delete-strategy" title="Delete Strategy"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+
+                <!-- Main Content Area with Flow Cards and Sidebar -->
+                <div class="strategy-content">
+                    <!-- Flow Cards Section -->
+                    <div class="flow-cards" id="flow-cards">
+                        <!-- Entry Rule Card -->
+                        <div class="flow-card" data-card="entry-rules">
+                            <div class="card-header">
+                                <span class="card-title">Entry Rules</span>
+                                <button class="card-parameter-btn"><i class="fas fa-cog"></i></button>
+                            </div>
+                            <div class="card-content">
+                                <p><span class="highlight">Indicator A</span> crosses above <span class="highlight">Indicator B</span></p>
+                            </div>
+                        </div>
+
+                        <!-- Exit Rule Card -->
+                        <div class="flow-card" data-card="exit-rules">
+                            <div class="card-header">
+                                <span class="card-title">Exit Rules</span>
+                                <button class="card-parameter-btn"><i class="fas fa-cog"></i></button>
+                            </div>
+                            <div class="card-content">
+                                <p><span class="highlight">Price</span> drops below <span class="highlight">Moving Average</span></p>
+                            </div>
+                        </div>
+
+                        <!-- Position Sizing Card -->
+                        <div class="flow-card" data-card="position-sizing">
+                            <div class="card-header">
+                                <span class="card-title">Position Sizing</span>
+                                <button class="card-parameter-btn"><i class="fas fa-cog"></i></button>
+                            </div>
+                            <div class="card-content">
+                                <p><span class="highlight">Fixed Size:</span> 10%</p>
+                            </div>
+                        </div>
+
+                        <!-- Strategy Allocation Card -->
+                        <div class="flow-card" data-card="strategy-allocation">
+                            <div class="card-header">
+                                <span class="card-title">Strategy Allocation</span>
+                                <button class="card-parameter-btn"><i class="fas fa-cog"></i></button>
+                            </div>
+                            <div class="card-content">
+                                <p><span class="highlight">Fixed Size:</span> 100%</p>
+                            </div>
+                        </div>
+
+                        <!-- Risk Management Card -->
+                        <div class="flow-card" data-card="risk-management">
+                            <div class="card-header">
+                                <span class="card-title">Risk Management</span>
+                                <button class="card-parameter-btn"><i class="fas fa-cog"></i></button>
+                            </div>
+                            <div class="card-content">
+                                <p><span class="highlight">Stop Loss:</span> -20%</p>
+                                <p><span class="highlight">Take Profit:</span> 10%</p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Sidebar Toggle Button -->
+                    <button class="sidebar-toggle-btn" id="sidebar-toggle-btn">
+                        <i class="fas fa-angle-left"></i>
+                    </button>
+
+                    <!-- Sidebar Menu -->
+                    <div class="sidebar" id="sidebar">
+                        <h3>Available Cards</h3>
+                        <ul class="sidebar-menu">
+                            <li>
+                                <label>
+                                    <input type="checkbox" data-card="strategy-allocation" />
+                                    Strategy Allocation
+                                </label>
+                            </li>
+                            <!-- Add more options as needed -->
+                            <li>
+                                <label>
+                                    <input type="checkbox" data-card="risk-management" />
+                                    Risk Management
+                                </label>
+                            </li>
+                            <li>
+                                <label>
+                                    <input type="checkbox" data-card="indicators" />
+                                    Indicators
+                                </label>
+                            </li>
+                            <!-- ... -->
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+
+
+
+        </section>
+
+        <!-- Horizontal Divider with Up/Down Arrow -->
+        <div class="horizontal-divider" id="horizontal-divider">
+            <span id="collapse-button" class="collapse-button">
+                <i class="fas fa-angle-double-down"></i>
+                <span class="view-more-text">View More</span>
+            </span>
+        </div>
+
+
+        <!-- Lower Panel: Backtest Results -->
+        <section class="lower-panel" id="lower-panel">
+            <h2>Backtest Results</h2>
+            <!-- Placeholder for results section -->
+        </section>
+    </main>
+
+    <!-- Floating Action Button (FAB) for Run Backtest -->
+    <button class="fab" id="run-backtest">
+        <i class="fas fa-play"></i><span>Run Backtest</span>
+    </button>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
