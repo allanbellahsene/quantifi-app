@@ -1,7 +1,12 @@
 import socket
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from app.api.backtest import backtest, BacktestInput
+
+from fastapi                        import FastAPI
+from fastapi.middleware.cors        import CORSMiddleware
+from starlette.middleware.sessions  import SessionMiddleware
+
+from app.api            import auth, protected_routes
+from app.api.backtest   import backtest, BacktestInput
+from app.core.config    import settings
 
 app = FastAPI(title="QuantiFi API", version="1.0.0")
 
@@ -14,6 +19,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add Session middleware for session management (needed for OAuth flows)
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to QuantiFi API"}
@@ -25,6 +33,12 @@ async def test():
 @app.post("/api/backtest")
 async def backtest_endpoint(input: BacktestInput):
     return await backtest(input)
+
+# Include the auth routes
+app.include_router(auth.router, prefix="/api/auth")
+
+# Include the auth routes
+app.include_router(protected_routes.router, prefix="/api/protected_routes")
 
 if __name__ == "__main__":
     import uvicorn
