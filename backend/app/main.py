@@ -7,6 +7,10 @@ from starlette.middleware.sessions  import SessionMiddleware
 from app.api            import auth, protected_routes
 from app.api.backtest   import backtest, BacktestInput
 from app.core.config    import settings
+from fastapi import HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi import Request
 
 app = FastAPI(title="QuantiFi API", version="1.0.0")
 
@@ -18,6 +22,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Log the error details
+    print(f"Validation error: {exc.errors()}")
+    print(f"Request body: {exc.body}")
+    # Return the errors in the response
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": exc.body},
+    )
 
 # Add Session middleware for session management (needed for OAuth flows)
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
@@ -32,7 +47,12 @@ async def test():
 
 @app.post("/api/backtest")
 async def backtest_endpoint(input: BacktestInput):
-    return await backtest(input)
+    try:
+        return await backtest(input)
+    except Exception as e:
+        print(f"Backtest error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Include the auth routes
 app.include_router(auth.router, prefix="/api/auth")

@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, List
 from app.utils.utils import numpy_to_python
-from app.services.backtest.strategies import add_indicators
+
 
 def calculate_cumulative_returns(returns: pd.Series) -> pd.Series:
     """
@@ -242,26 +242,28 @@ def metrics_table(df_result: pd.DataFrame, strategies: List[Any]) -> Dict[str, A
         Dict[str, Any]: Dictionary containing equity curves, drawdowns, rolling Sharpe ratios, and metrics.
     """
     # Prepare columns for equity curves
-    equity_columns = ['cumulative_returns', 'cumulative_market_returns'] + [
-        f'{s.name}_cumulative_returns' for s in strategies if s.active
-    ]
+    equity_columns = ['cumulative_log_equity', 'cumulative_log_market_equity', 'cumulative_equity',
+                      'cumulative_market_equity'] + [
+        f'{s.name}_cumulative_log_equity' for s in strategies if s.active
+    ] + [f'{s.name}_cumulative_equity' for s in strategies if s.active]
+    
     equity_curve = df_result[equity_columns].reset_index().rename(columns={'index': 'Date'}).to_dict('records')
 
     # Prepare columns for drawdowns
-    drawdown_columns = ['strategy_drawdown', 'market_drawdown'] + [
+    drawdown_columns = ['portfolio_drawdown', 'market_drawdown'] + [
         f'{s.name}_drawdown' for s in strategies if s.active
     ]
     drawdown = df_result[drawdown_columns].reset_index().rename(columns={'index': 'Date'}).to_dict('records')
 
     # Prepare columns for rolling Sharpe ratios
-    rolling_sharpe_columns = ['strategy_rolling_sharpe', 'market_rolling_sharpe'] + [
+    rolling_sharpe_columns = ['portfolio_rolling_sharpe', 'market_rolling_sharpe'] + [
         f'{s.name}_rolling_sharpe' for s in strategies if s.active
     ]
     rolling_sharpe = df_result[rolling_sharpe_columns].reset_index().rename(columns={'index': 'Date'}).to_dict('records')
 
     # Calculate metrics for the portfolio and benchmark
     metrics = {
-        'Portfolio': calculate_metrics(df_result['strategy_returns'], df_result['position']),
+        'Portfolio': calculate_metrics(df_result['portfolio_returns'], df_result['total_position']),
         'Benchmark': calculate_metrics(
             df_result['returns'],
             pd.Series(1, index=df_result.index)  # Benchmark assumes always invested
@@ -269,18 +271,22 @@ def metrics_table(df_result: pd.DataFrame, strategies: List[Any]) -> Dict[str, A
     }
 
     # Calculate metrics for each active strategy
+    signals = {}
     for strategy in strategies:
         if strategy.active:
             strategy_returns = df_result[f'{strategy.name}_returns']
             strategy_positions = df_result[f'{strategy.name}_signal']
             metrics[strategy.name] = calculate_metrics(strategy_returns, strategy_positions)
+            signals[strategy.name] = df_result[[f'{strategy.name}_signal', 'Close']].reset_index().rename(columns={'index': 'Date'}).to_dict('records')
 
     # Compile the final result
     result = {
         'equityCurve': equity_curve,
         'drawdown': drawdown,
         'rollingSharpe': rolling_sharpe,
-        'metrics': metrics
+        'metrics': metrics,
+        'signals': signals
     }
+
 
     return result

@@ -4,15 +4,12 @@ import React, { useState, useEffect } from 'react';
 import {
   Button, 
   Typography} from '@mui/material';
-import dayjs from 'dayjs';
-import EquityCurveChart from './EquityCurveChart';
 import MetricsTable from './MetricsTable';
-import DrawdownChart from './DrawdownChart';
-import RollingSharpeChart from './RollingSharpeChart';
 import { styled } from '@mui/material/styles';
 import BacktestingParameters from './BacktestingParameters';
 import StrategyBuilder from './StrategyBuilder';
-
+import TradesTable from './TradesTable';
+import ChartSystem from './ChartSystem';
 
 
 // Create a PrimaryButton component
@@ -36,54 +33,34 @@ const INDICATORS = [
   { name: 'Low', params: [] },
   { name: 'Close', params: [] },
   { name: 'Volume', params: [] },
-  { name: 'SMA', params: ['period'] },
-  { name: 'EMA', params: ['period'] },
-  { name: 'Rolling_High', params: ['period'] },
-  { name: 'Rolling_Low', params: ['period'] },
-  { name: 'MA_trend', params: ['ma_window', 'return_window'] },
+  { name: 'SMA', params: ['series', 'period'] },
+  { name: 'EMA', params: ['series', 'period'] },
+  { name: 'Rolling_High', params: ['series', 'period'] },
+  { name: 'Rolling_Low', params: ['series', 'period'] },
+  { name: 'MA_trend', params: ['series', 'ma_window', 'return_window'] },
 ];
 
 const QuantiFiBacktestingLab = () => {
   const [asset, setAsset] = useState('BTC-USD');
   const [startDate, setStartDate] = useState('2020-01-01');
   const [endDate, setEndDate] = useState('2024-10-09');
-  const [fees, setFees] = useState(0.001);
-  const [slippage, setSlippage] = useState(0.001);
+  const [fees, setFees] = useState(0.5);
+  const [slippage, setSlippage] = useState(0.1);
   const [strategies, setStrategies] = useState([]);
   const [backtestResults, setBacktestResults] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-
-
-  useEffect(() => {
-    if (backtestResults) {
-      if (backtestResults.equityCurve) {
-        const processedEquityCurve = backtestResults.equityCurve.map(item => ({
-          ...item,
-          Date: dayjs(item.Date).format('YYYY-MM-DD')
-        }));
-        setBacktestResults(prev => ({ ...prev, equityCurve: processedEquityCurve }));
-      }
-      if (backtestResults.drawdown) {
-        const processedDrawdown = backtestResults.drawdown.map(item => ({
-          ...item,
-          Date: dayjs(item.Date).format('YYYY-MM-DD')
-        }));
-        setBacktestResults(prev => ({ ...prev, drawdown: processedDrawdown }));
-      }
-      if (backtestResults.rollingSharpe) {
-        const processedRollingSharpe = backtestResults.rollingSharpe.map(item => ({
-          ...item,
-          Date: dayjs(item.Date).format('YYYY-MM-DD')
-        }));
-        setBacktestResults(prev => ({ ...prev, rollingSharpe: processedRollingSharpe }));
-      }
-    }
-  }, [backtestResults]);
+  
 
   useEffect(() => {
     console.log('Strategies updated:', strategies);
   }, [strategies]);
+
+  const toggleStrategyCollapse = (strategyIndex) => {
+    const updatedStrategies = [...strategies];
+    updatedStrategies[strategyIndex].collapsed = !updatedStrategies[strategyIndex].collapsed;
+    setStrategies(updatedStrategies);
+  };
   
   const addStrategy = () => {
     setStrategies([...strategies, {
@@ -94,7 +71,14 @@ const QuantiFiBacktestingLab = () => {
       exitRules: [],
       active: true,
       position_size: 1,
-      regime_filter: null
+      regime_filter: null,
+      position_size_method: 'fixed', // New parameter
+      fixed_position_size: 1.0,      // New parameter
+      volatility_target: null,       // New parameter
+      volatility_lookback: 30,       // New parameter
+      volatility_buffer: null,       // New parameter
+      max_leverage: 1.0, 
+      collapsed: false, // New property to track collapse state
     }]);
   };
 
@@ -105,6 +89,38 @@ const QuantiFiBacktestingLab = () => {
   const updateStrategy = (index, field, value) => {
     const updatedStrategies = [...strategies];
     updatedStrategies[index][field] = value;
+
+    // Additional logic to reset fields if necessary
+    if (field === 'position_size_method') {
+      if (value === 'fixed') {
+        // Reset volatility-related fields
+        updatedStrategies[index]['volatility_target'] = null;
+        updatedStrategies[index]['volatility_buffer'] = null;
+        updatedStrategies[index]['volatility_lookback'] = 30;
+        updatedStrategies[index]['max_leverage'] = 1.0;
+        // Ensure fixed_position_size has a default value
+        if (!updatedStrategies[index]['fixed_position_size']) {
+          updatedStrategies[index]['fixed_position_size'] = 1.0;
+        }
+      } else if (value === 'volatility_target') {
+        // Reset fixed_position_size
+        updatedStrategies[index]['fixed_position_size'] = null;
+        // Ensure volatility-related fields have default values
+        if (!updatedStrategies[index]['volatility_target']) {
+          updatedStrategies[index]['volatility_target'] = 10.0; // Example default
+        }
+        if (!updatedStrategies[index]['volatility_buffer']) {
+          updatedStrategies[index]['volatility_buffer'] = 5.0; // Example default
+        }
+        if (!updatedStrategies[index]['volatility_lookback']) {
+          updatedStrategies[index]['volatility_lookback'] = 30;
+        }
+        if (!updatedStrategies[index]['max_leverage']) {
+          updatedStrategies[index]['max_leverage'] = 3.0;
+        }
+      }
+    }
+
     setStrategies(updatedStrategies);
   };
 
@@ -112,13 +128,13 @@ const QuantiFiBacktestingLab = () => {
     const updatedStrategies = [...strategies];
     const newRule = {
       leftIndicator: '',
-      leftParams: {},
+      leftParams: { series: 'Close' }, // Set default 'series' parameter
       operator: '<',
       useRightIndicator: false,
       rightIndicator: '',
-      rightParams: {},
+      rightParams: { series: 'Close' }, // Set default 'series' parameter
       rightValue: '',
-      logicalOperator: 'and'
+      logicalOperator: 'and',
     };
     if (!updatedStrategies[strategyIndex][ruleType]) {
       updatedStrategies[strategyIndex][ruleType] = [];
@@ -126,6 +142,7 @@ const QuantiFiBacktestingLab = () => {
     updatedStrategies[strategyIndex][ruleType].push(newRule);
     setStrategies(updatedStrategies);
   };
+  
 
   const updateRule = (strategyIndex, ruleIndex, ruleType, field, value) => {
     console.log('Updating rule:', { strategyIndex, ruleIndex, ruleType, field, value });
@@ -153,9 +170,10 @@ const QuantiFiBacktestingLab = () => {
 
   const updateIndicatorParam = (strategyIndex, ruleIndex, ruleType, side, param, value) => {
     const updatedStrategies = [...strategies];
-    updatedStrategies[strategyIndex][ruleType][ruleIndex][`${side}Params`][param] = value;
+    updatedStrategies[strategyIndex][ruleType][ruleIndex][`${side}Params`][param] = value || 'Close'; // Default to 'Close' if empty
     setStrategies(updatedStrategies);
   };
+  
 
   const removeRule = (strategyIndex, ruleIndex, ruleType) => {
     const updatedStrategies = [...strategies];
@@ -168,6 +186,41 @@ const QuantiFiBacktestingLab = () => {
     setError(null);
 
     try {
+        // Prepare strategies data
+        const strategiesToSend = strategies.map((strategy) => {
+          const strategyData = {
+            name: strategy.name,
+            allocation: strategy.allocation,
+            entryRules: strategy.entryRules,
+            exitRules: strategy.exitRules,
+            positionType: strategy.positionType,
+            active: strategy.active,
+            position_size_method: strategy.position_size_method,
+            max_leverage: strategy.max_leverage,
+          };
+        
+          if (strategy.position_size_method === 'fixed') {
+            strategyData.fixed_position_size = strategy.fixed_position_size;
+          } else if (strategy.position_size_method === 'volatility_target') {
+            strategyData.volatility_target = strategy.volatility_target;
+            strategyData.volatility_buffer = strategy.volatility_buffer;
+            strategyData.volatility_lookback = strategy.volatility_lookback;
+          }
+        
+          return strategyData;
+        });
+        
+
+      // Log the payload
+      console.log('Backtest request payload:', {
+        symbol: asset,
+        start: startDate,
+        end: endDate,
+        fees,
+        slippage,
+        strategies: strategiesToSend,
+      });
+
       const response = await fetch('http://localhost:8001/api/backtest', {
         method: 'POST',
         headers: {
@@ -179,7 +232,7 @@ const QuantiFiBacktestingLab = () => {
           end: endDate,
           fees,
           slippage,
-          strategies
+          strategies: strategiesToSend,
         }),
       });
 
@@ -190,6 +243,7 @@ const QuantiFiBacktestingLab = () => {
 
       const data = await response.json();
       console.log('Backtest API response:', data);
+      console.log('Trades data:', data.trades);
       setBacktestResults(data);
     } catch (err) {
       setError(err.message);
@@ -226,6 +280,7 @@ const QuantiFiBacktestingLab = () => {
         updateIndicatorParam={updateIndicatorParam}
         removeRule={removeRule}
         addRule={addRule}
+        toggleStrategyCollapse={toggleStrategyCollapse}
       />
 
 
@@ -239,22 +294,11 @@ const QuantiFiBacktestingLab = () => {
 
       {backtestResults && (
         <div>
-          <EquityCurveChart 
-            data={backtestResults.equityCurve} 
-            strategies={strategies.filter(s => s.active)}
-            assetName={asset}
-            startDate={startDate}
-            endDate={endDate}
-          />
-          <DrawdownChart
-            data={backtestResults.drawdown}
-            strategies={strategies.filter(s => s.active)}
-            assetName={asset}
-            startDate={startDate}
-            endDate={endDate}
-            />
-          <RollingSharpeChart
-            data={backtestResults.rollingSharpe}
+          <ChartSystem
+            equityCurveData={backtestResults.equityCurve || []}
+            drawdownData={backtestResults.drawdown || []}
+            rollingSharpeData={backtestResults.rollingSharpe || []}
+            signals={backtestResults.signals || {}}
             strategies={strategies.filter(s => s.active)}
             assetName={asset}
             startDate={startDate}
@@ -262,6 +306,9 @@ const QuantiFiBacktestingLab = () => {
           />
         {backtestResults.metrics && (
             <MetricsTable metrics={backtestResults.metrics} />
+            )}
+        {backtestResults.trades && (
+            <TradesTable trades={backtestResults.trades} />
             )}
             </div>
         )}

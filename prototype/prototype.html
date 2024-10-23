@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compact Backtest App Layout</title>
+  <style>
+    /* Global Styles */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1e1e2f;
+      color: #ffffff;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto 1fr;
+      gap: 20px;
+      width: 100%;
+      max-width: 1200px;
+      height: 100%;
+    }
+
+    /* Card Style */
+    .card {
+      background-color: #2a2a3c;
+      border-radius: 10px;
+      padding: 15px;
+      box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+
+    .card-header h2 {
+      font-size: 1.2em;
+      color: #8b5cf6; /* Accent color */
+      margin: 0;
+      margin-bottom: 10px;
+    }
+
+    /* Form and Input Styles */
+    .form-group {
+      margin-bottom: 10px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85em;
+      color: #cccccc;
+      margin-bottom: 3px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 6px;
+      border: none;
+      background-color: #3a3a4d;
+      color: #ffffff;
+      font-size: 0.9em;
+    }
+
+    /* Button Style */
+    .btn-primary {
+      background-color: #8b5cf6;
+      border: none;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 5px;
+      font-size: 0.9em;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      width: 100%;
+    }
+
+    .btn-primary:hover {
+      background-color: #a177ff;
+    }
+
+    /* Layout Adjustments */
+    .backtest-inputs {
+      grid-column: 1 / 2;
+      grid-row: 1 / 2;
+    }
+
+    .strategy-builder {
+      grid-column: 2 / 3;
+      grid-row: 1 / 2;
+    }
+
+    .backtest-results {
+      grid-column: 1 / 3;
+      grid-row: 2 / 3;
+    }
+
+    /* Collapsible Strategy Builder */
+    .collapsible-content {
+      display: none;
+    }
+
+    .collapsed .collapsible-content {
+      display: block;
+    }
+
+    .collapsed .card-body {
+      display: none;
+    }
+
+    .expand-collapse-btn {
+      background-color: transparent;
+      border: none;
+      color: #8b5cf6;
+      cursor: pointer;
+      font-size: 0.9em;
+      text-align: left;
+      margin: 0;
+      padding: 0;
+      display: block;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Backtest Inputs (Top Left) -->
+  <div class="card backtest-inputs">
+    <div class="card-header">
+      <h2>Backtest Parameters</h2>
+    </div>
+    <div class="card-body">
+      <form>
+        <div class="form-group">
+          <label for="asset-symbol">Asset Symbol</label>
+          <input type="text" id="asset-symbol" placeholder="e.g., BTC-USD">
+        </div>
+        <div class="form-group">
+          <label for="start-date">Start Date</label>
+          <input type="date" id="start-date">
+        </div>
+        <div class="form-group">
+          <label for="end-date">End Date</label>
+          <input type="date" id="end-date">
+        </div>
+        <div class="form-group">
+          <label for="fees">Fees (%)</label>
+          <input type="number" id="fees" placeholder="0.5">
+        </div>
+        <div class="form-group">
+          <label for="slippage">Slippage (%)</label>
+          <input type="number" id="slippage" placeholder="0.1">
+        </div>
+        <button type="button" class="btn-primary">Run Backtest</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Strategy Builder (Top Right) -->
+  <div class="card strategy-builder" id="strategy-builder-card">
+    <div class="card-header">
+      <h2>Strategy Builder</h2>
+      <button class="expand-collapse-btn" onclick="toggleCollapse()">Show Summary ▼</button>
+    </div>
+    <div class="card-body">
+      <form>
+        <!-- Strategy Name and Allocation -->
+        <div class="form-group">
+          <label for="strategy-name">Strategy Name</label>
+          <input type="text" id="strategy-name" placeholder="e.g., Strategy 1">
+        </div>
+        <div class="form-group">
+          <label for="allocation">Allocation (%)</label>
+          <input type="number" id="allocation" placeholder="100">
+        </div>
+
+        <!-- Position Sizing Method -->
+        <div class="form-group">
+          <label>Position Sizing Method</label>
+          <select>
+            <option>Fixed Position Size</option>
+            <option>Volatility Target Position Sizing</option>
+          </select>
+        </div>
+
+        <!-- Entry Rules -->
+        <h3 style="color: #8b5cf6; font-size: 1em;">Entry Rules</h3>
+        <div class="form-group">
+          <label for="entry-indicator">Indicator</label>
+          <select id="entry-indicator">
+            <option value="moving_average">Moving Average</option>
+            <option value="rsi">RSI</option>
+            <option value="macd">MACD</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="entry-value">Value</label>
+          <input type="number" id="entry-value" placeholder="e.g., 50">
+        </div>
+        <button type="button" class="btn-primary" style="margin-top: 5px;">+ Add Entry Rule</button>
+
+        <!-- Exit Rules -->
+        <h3 style="color: #8b5cf6; font-size: 1em; margin-top: 10px;">Exit Rules</h3>
+        <div class="form-group">
+          <label for="exit-indicator">Indicator</label>
+          <select id="exit-indicator">
+            <option value="moving_average">Moving Average</option>
+            <option value="rsi">RSI</option>
+            <option value="macd">MACD</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="exit-value">Value</label>
+          <input type="number" id="exit-value" placeholder="e.g., 30">
+        </div>
+        <button type="button" class="btn-primary" style="margin-top: 5px;">+ Add Exit Rule</button>
+      </form>
+    </div>
+
+    <!-- Collapsible Summary Content -->
+    <div class="collapsible-content">
+      <p>Strategy Summary: <br> - Entry Rules: RSI < 50 <br> - Exit Rules: RSI > 70</p>
+    </div>
+  </div>
+
+  <!-- Backtest Results (Bottom) -->
+  <div class="card backtest-results">
+    <div class="card-header">
+      <h2>Backtest Results</h2>
+    </div>
+    <div class="card-body">
+      <p style="color: #cccccc; text-align: center; margin-top: 10px;">
+        [Equity Curve, Performance Metrics, and Price Signals Charts will be displayed here]
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleCollapse() {
+    const card = document.getElementById('strategy-builder-card');
+    const button = card.querySelector('.expand-collapse-btn');
+    card.classList.toggle('collapsed');
+    button.innerText = card.classList.contains('collapsed') ? 'Show Full View ▲' : 'Show Summary ▼';
+  }
+</script>
+
+</body>
+</html>
+
+
+
+
+
