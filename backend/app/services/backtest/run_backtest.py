@@ -3,8 +3,8 @@
 import pandas as pd
 import numpy as np
 from typing import List
-from app.services.backtest.strategies import Strategy, add_indicators
-#from strategies import Strategy, add_indicators
+from app.services.strategy_module.strategy import Strategy
+from app.services.strategy_module.utils import add_indicators
 
 
 def run_backtest(df: pd.DataFrame, strategy: Strategy, fees: float, slippage: float) -> pd.DataFrame:
@@ -23,6 +23,8 @@ def run_backtest(df: pd.DataFrame, strategy: Strategy, fees: float, slippage: fl
         print(f"Generating signals for strategy: {strategy.name}")
         df[f'{strategy.name}_signal'] = strategy.generate_signals(df)
         df[f'{strategy.name}_position_size'] = strategy.calculate_position_sizes(df)
+        print('DF:')
+        print(df.head())
         print('position_type:')
         print(strategy.position_type)
         df[f'{strategy.name}_position'] = df[f'{strategy.name}_signal'].shift() * df[f'{strategy.name}_position_size']
@@ -86,7 +88,7 @@ if __name__ == "__main__":
         position_type='long',
         position_size_method='fixed'
     )
-    bt = run_backtest(df, [strategy_vol_target, strategy_fixed], fees=0.0001, slippage=0.0005)
+    bt = run_backtest(df, strategy_vol_target, fees=0.0001, slippage=0.0005)
     bt.to_csv('backtest_test.csv')
 
 

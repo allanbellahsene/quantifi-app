@@ -74,7 +74,10 @@ async def backtest(input: BacktestInput):
             if input.data_source == 'Yahoo Finance':
                 if freq != 'Daily':
                     raise ValueError(f'Yahoo Finance only supports Daily frequency, but {freq} was requested.')
+                print('DOWNLOAD YF DATA:')
                 df = download_yf_data(input.symbol, input.start, input.end)
+                print('DF:')
+                print(df.head())
             elif input.data_source == 'Binance':
                 interval_map = {
                     'Daily': '1d',
@@ -137,6 +140,7 @@ async def backtest(input: BacktestInput):
                     volatility_lookback=s.volatility_lookback,
                     volatility_buffer=s.volatility_buffer,
                     max_leverage=s.max_leverage,
+                    frequency=s.frequency,
                 )
 
                 # Run backtest for this strategy

@@ -27,7 +27,6 @@ def process_trade(trade_df):
 
     elif initial_position < 0:
         # Short trade
-        trade_type = 'Short'
         # Entry when delta_pos < 0 (position decreases, more negative)
         delta_pos_entry = -delta_pos[delta_pos < 0]  # Convert to positive quantities
         Close_entry = Close[delta_pos < 0]

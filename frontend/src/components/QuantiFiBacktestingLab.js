@@ -38,6 +38,7 @@ const INDICATORS = [
   { name: 'Rolling_High', params: ['series', 'period'] },
   { name: 'Rolling_Low', params: ['series', 'period'] },
   { name: 'MA_trend', params: ['series', 'ma_window', 'return_window'] },
+  { name: 'VWAP', params: [] },  
 ];
 
 const QuantiFiBacktestingLab = () => {
