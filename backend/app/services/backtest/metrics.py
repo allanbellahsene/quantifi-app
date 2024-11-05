@@ -109,7 +109,7 @@ def calculate_best_worst_month(returns: pd.Series) -> (float, float):
         tuple: Best month return, Worst month return.
     """
     try:
-        monthly_returns = returns.resample('M').apply(lambda x: (x + 1).prod() - 1)
+        monthly_returns = returns.resample('ME').apply(lambda x: (x + 1).prod() - 1)
         best_month = monthly_returns.max()
         worst_month = monthly_returns.min()
     except Exception as e:

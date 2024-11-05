@@ -50,6 +50,8 @@ const QuantiFiBacktestingLab = () => {
   const [backtestResults, setBacktestResults] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [dataSource, setDataSource] = useState('Yahoo Finance');
+
   
 
   useEffect(() => {
@@ -63,6 +65,7 @@ const QuantiFiBacktestingLab = () => {
   };
   
   const addStrategy = () => {
+    const defaultFrequency = dataSource === 'Yahoo Finance' ? 'Daily' : '1h'; // You can choose a default
     setStrategies([...strategies, {
       name: `Strategy ${strategies.length + 1}`,
       allocation: 100,
@@ -78,6 +81,7 @@ const QuantiFiBacktestingLab = () => {
       volatility_lookback: 30,       // New parameter
       volatility_buffer: null,       // New parameter
       max_leverage: 1.0, 
+      frequency: defaultFrequency,
       collapsed: false, // New property to track collapse state
     }]);
   };
@@ -89,7 +93,7 @@ const QuantiFiBacktestingLab = () => {
   const updateStrategy = (index, field, value) => {
     const updatedStrategies = [...strategies];
     updatedStrategies[index][field] = value;
-
+  
     // Additional logic to reset fields if necessary
     if (field === 'position_size_method') {
       if (value === 'fixed') {
@@ -120,9 +124,30 @@ const QuantiFiBacktestingLab = () => {
         }
       }
     }
-
+  
+    // Add logic to handle updates to the 'frequency' field
+    if (field === 'frequency') {
+      const selectedFrequency = value;
+      const availableFrequencies = dataSource === 'Yahoo Finance'
+        ? ['Daily']
+        : ['Daily', '4h', '1h', '30m', '15m', '10m', '5m', '1m'];
+  
+      // Validate that the selected frequency is available for the current data source
+      if (!availableFrequencies.includes(selectedFrequency)) {
+        // If not valid, reset to a default frequency
+        updatedStrategies[index]['frequency'] = availableFrequencies[0];
+      }
+  
+      // Reset or adjust any dependent fields if necessary
+      // For example, you might want to reset indicators that are not compatible with the new frequency
+      // updatedStrategies[index]['entryRules'] = []; // Optionally reset entry rules
+      // updatedStrategies[index]['exitRules'] = []; // Optionally reset exit rules
+    }
+  
     setStrategies(updatedStrategies);
   };
+  
+  
 
   const addRule = (strategyIndex, ruleType) => {
     const updatedStrategies = [...strategies];
@@ -180,6 +205,36 @@ const QuantiFiBacktestingLab = () => {
     updatedStrategies[strategyIndex][ruleType].splice(ruleIndex, 1);
     setStrategies(updatedStrategies);
   };
+
+  // **Function to Duplicate a Strategy**
+  const duplicateStrategy = (strategyIndex) => {
+    const strategyToDuplicate = strategies[strategyIndex];
+    // Create a deep copy of the strategy
+    const duplicatedStrategy = JSON.parse(JSON.stringify(strategyToDuplicate));
+
+    // Modify the name to indicate it's a copy
+    const originalName = duplicatedStrategy.name;
+    const copyRegex = / Copy( \d+)?$/;
+    let baseName = originalName.replace(copyRegex, '');
+    let copyNumber = 1;
+
+    // Check if any existing strategies have the same base name with a copy number
+    strategies.forEach((strategy) => {
+      const match = strategy.name.match(new RegExp(`^${baseName} Copy( \\d+)?$`));
+      if (match) {
+        const number = match[1] ? parseInt(match[1].trim()) : 1;
+        if (number >= copyNumber) {
+          copyNumber = number + 1;
+        }
+      }
+    });
+
+    duplicatedStrategy.name = `${baseName} Copy${copyNumber > 1 ? ' ' + copyNumber : ''}`;
+    duplicatedStrategy.collapsed = false; // Expand the duplicated strategy
+
+    // Add the duplicated strategy to the strategies array
+    setStrategies([...strategies, duplicatedStrategy]);
+  };
   
   const runBacktest = async () => {
     setIsLoading(true);
@@ -197,6 +252,7 @@ const QuantiFiBacktestingLab = () => {
             active: strategy.active,
             position_size_method: strategy.position_size_method,
             max_leverage: strategy.max_leverage,
+            frequency: strategy.frequency,
           };
         
           if (strategy.position_size_method === 'fixed') {
@@ -214,6 +270,7 @@ const QuantiFiBacktestingLab = () => {
       // Log the payload
       console.log('Backtest request payload:', {
         symbol: asset,
+        data_source: dataSource,
         start: startDate,
         end: endDate,
         fees,
@@ -228,6 +285,7 @@ const QuantiFiBacktestingLab = () => {
         },
         body: JSON.stringify({
           symbol: asset,
+          data_source: dataSource,
           start: startDate,
           end: endDate,
           fees,
@@ -259,6 +317,8 @@ const QuantiFiBacktestingLab = () => {
       <BacktestingParameters
         asset={asset}
         setAsset={setAsset}
+        dataSource={dataSource}
+        setDataSource={setDataSource}
         startDate={startDate}
         setStartDate={setStartDate}
         endDate={endDate}
@@ -281,6 +341,8 @@ const QuantiFiBacktestingLab = () => {
         removeRule={removeRule}
         addRule={addRule}
         toggleStrategyCollapse={toggleStrategyCollapse}
+        duplicateStrategy={duplicateStrategy} // Pass the function as a prop
+        dataSource={dataSource}
       />
 
 

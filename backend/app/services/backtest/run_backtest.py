@@ -7,88 +7,64 @@ from app.services.backtest.strategies import Strategy, add_indicators
 #from strategies import Strategy, add_indicators
 
 
-def run_backtest(df: pd.DataFrame, strategies: List[Strategy], fees: float, slippage: float) -> pd.DataFrame:
-    """Run a backtest for the given strategies"""
-    #### FEES AND SLIPPAGE ARE PERCENTAGE INPUTS.
-    fees=fees/100
-    slippage=slippage/100
-    print("Starting backtest...")
+def run_backtest(df: pd.DataFrame, strategy: Strategy, fees: float, slippage: float) -> pd.DataFrame:
+    """Run a backtest for a single strategy"""
+    # Convert fees and slippage from percentages to decimals
+    fees = fees / 100
+    slippage = slippage / 100
+    print(f"Starting backtest for strategy {strategy.name}...")
 
     # Add indicators to the DataFrame
-    df = add_indicators(df, strategies)
+    df = add_indicators(df, [strategy])
     print("Indicators added to DataFrame")
 
-    # Generate signals and calculate returns for each strategy
-    for strategy in strategies:
-        if strategy.active:
-            print(f"Generating signals for strategy: {strategy.name}")
-            df[f'{strategy.name}_signal'] = strategy.generate_signals(df)
-            df[f'{strategy.name}_position_size'] = strategy.calculate_position_sizes(df)
-            print('position_type:')
-            print(strategy.position_type)
-            df[f'{strategy.name}_position'] = df[f'{strategy.name}_signal'].shift() * df[f'{strategy.name}_position_size']
-            print(df.loc[df[f'{strategy.name}_position']!=0])
-            df[f'{strategy.name}_returns'] = df[f'{strategy.name}_position'].shift() * df['Close'].pct_change() - \
-                                             df[f'{strategy.name}_position'].diff().abs() * (fees + slippage)
-            df[f'{strategy.name}_log_returns'] = df[f'{strategy.name}_position'].shift() * np.log(df['Close']/df['Close'].shift()) - \
-                                             df[f'{strategy.name}_position'].diff().abs() * (fees + slippage)
-            df[f'{strategy.name}_cumulative_equity'] = (1 + df[f'{strategy.name}_returns']).cumprod()
-            df[f'{strategy.name}_cumulative_returns'] = df[f'{strategy.name}_cumulative_equity'] - 1
-            df[f'{strategy.name}_cumulative_log_equity'] = (df[f'{strategy.name}_log_returns']).cumsum()
+    # Generate signals and calculate returns for the strategy
+    if strategy.active:
+        print(f"Generating signals for strategy: {strategy.name}")
+        df[f'{strategy.name}_signal'] = strategy.generate_signals(df)
+        df[f'{strategy.name}_position_size'] = strategy.calculate_position_sizes(df)
+        print('position_type:')
+        print(strategy.position_type)
+        df[f'{strategy.name}_position'] = df[f'{strategy.name}_signal'].shift() * df[f'{strategy.name}_position_size']
+        print(df.loc[df[f'{strategy.name}_position'] != 0])
 
-    # Combine signals from all active strategies
-    df['total_position'] = sum(
-        df[f'{strategy.name}_position'] * strategy.active
-        for strategy in strategies
-    )
-    print("Combined signals from all active strategies")
+        # Calculate returns
+        df[f'{strategy.name}_returns'] = df[f'{strategy.name}_position'].shift() * df['Close'].pct_change() - \
+                                         df[f'{strategy.name}_position'].diff().abs() * (fees + slippage)
+        df[f'{strategy.name}_log_returns'] = df[f'{strategy.name}_position'].shift() * np.log(df['Close'] / df['Close'].shift()) - \
+                                             df[f'{strategy.name}_position'].diff().abs() * (fees + slippage)
 
-    # Calculate overall portfolio returns
+        # Calculate cumulative returns
+        df[f'{strategy.name}_cumulative_equity'] = (1 + df[f'{strategy.name}_returns']).cumprod()
+        df[f'{strategy.name}_cumulative_returns'] = df[f'{strategy.name}_cumulative_equity'] - 1
+        df[f'{strategy.name}_cumulative_log_equity'] = df[f'{strategy.name}_log_returns'].cumsum()
+
+        # Calculate drawdown
+        df[f'{strategy.name}_drawdown'] = 1 - df[f'{strategy.name}_cumulative_equity'] / df[f'{strategy.name}_cumulative_equity'].cummax()
+
+        # Calculate rolling Sharpe ratio
+        window = 90  # rolling window size in days
+        df[f'{strategy.name}_rolling_sharpe'] = df[f'{strategy.name}_returns'].rolling(window).apply(
+            lambda x: (x.mean() / x.std()) * np.sqrt(365) if x.std() != 0 else 0)
+    else:
+        print(f"Strategy {strategy.name} is not active.")
+
+    # Calculate market returns and metrics
     df['returns'] = df['Close'].pct_change()
-    df['log_returns'] = np.log(df['Close']/df['Close'].shift())
-    df['gross_portfolio_returns'] = df['total_position'].shift() * df['returns']
-    df['gross_portfolio_log_returns'] = df['total_position'].shift() * df['log_returns']
-
-    # Apply fees and slippage
-    df['trades'] = df['total_position'].diff().abs()
-    df['transaction_costs'] = df['trades'] * (fees + slippage)
-    df['portfolio_returns'] = df['gross_portfolio_returns'] - df['transaction_costs']
-    df['portfolio_log_returns'] = df['gross_portfolio_log_returns'] - df['transaction_costs']
-    print("Calculated returns and applied fees and slippage")
-
-    # Calculate cumulative returns
-    df['cumulative_equity'] = (1 + df['portfolio_returns']).cumprod()
-    df['cumulative_log_equity'] = (df['portfolio_log_returns']).cumsum()
-    df['cumulative_log_market_equity'] = (df['log_returns']).cumsum()
+    df['log_returns'] = np.log(df['Close'] / df['Close'].shift())
     df['cumulative_market_equity'] = (1 + df['returns']).cumprod()
-    df['cumulative_returns'] = df['cumulative_equity'] - 1
     df['cumulative_market_returns'] = df['cumulative_market_equity'] - 1
-    print("Calculated cumulative returns")
-
-    # Calculate drawdowns
-    df['portfolio_drawdown'] = 1 - df['cumulative_equity'] / df['cumulative_equity'].cummax()
+    df['cumulative_log_market_equity'] = df['log_returns'].cumsum()
     df['market_drawdown'] = 1 - df['cumulative_market_equity'] / df['cumulative_market_equity'].cummax()
-    # Calculate drawdowns for each individual strategy
-    for strategy in strategies:
-        if strategy.active:
-            df[f'{strategy.name}_drawdown'] = 1 - df[f'{strategy.name}_cumulative_equity'] / df[f'{strategy.name}_cumulative_equity'].cummax()
-    print("Calculated individual strategy drawdowns")
-    print("Calculated drawdowns")
-    # Calculate rolling Sharpe ratios
-    window = 90  # rolling window size in days
-    df['portfolio_rolling_sharpe'] = df['portfolio_returns'].rolling(window).apply(lambda x: (x.mean() / x.std()) * np.sqrt(365) if x.std() != 0 else 0)
-    df['market_rolling_sharpe'] = df['returns'].rolling(window).apply(lambda x: (x.mean() / x.std()) * np.sqrt(365) if x.std() != 0 else 0)
-    for strategy in strategies:
-        if strategy.active:
-            df[f'{strategy.name}_rolling_sharpe'] = df[f'{strategy.name}_returns'].rolling(window).apply(
-                lambda x: (x.mean() / x.std()) * np.sqrt(365) if x.std() != 0 else 0)
-    print("Calculated rolling Sharpe ratios")
+    df['market_rolling_sharpe'] = df['returns'].rolling(window).apply(
+        lambda x: (x.mean() / x.std()) * np.sqrt(365) if x.std() != 0 else 0)
 
-    print("Backtest completed")
-
-    df.to_csv('backtest.csv')
+    print(f"Backtest for strategy {strategy.name} completed.")
+    # Optionally save to CSV for debugging
+    # df.to_csv(f'backtest_{strategy.name}.csv')
 
     return df
+
 
 
 if __name__ == "__main__":

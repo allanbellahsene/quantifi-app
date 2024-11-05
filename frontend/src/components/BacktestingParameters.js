@@ -1,4 +1,4 @@
-//QuantiFiBacktestingLab.js
+//BacktestingParameters.js
 
 import React from 'react';
 import {
@@ -7,7 +7,11 @@ import {
   Box, 
   InputAdornment,
   Paper,
-  Divider
+  Divider,
+  Select,        
+  MenuItem,      
+  FormControl,   
+  InputLabel
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -18,6 +22,8 @@ import SearchIcon from '@mui/icons-material/Search';
 const BacktestingParameters = ({
     asset,
     setAsset,
+    dataSource,   
+    setDataSource,
     startDate,
     setStartDate,
     endDate,
@@ -59,6 +65,19 @@ const BacktestingParameters = ({
             variant="outlined"
             fullWidth
           />
+
+        {/* Data Source */}
+        <FormControl variant="outlined" fullWidth>
+          <InputLabel>Data Source</InputLabel>
+          <Select
+            label="Data Source"
+            value={dataSource}
+            onChange={(e) => setDataSource(e.target.value)}
+          >
+            <MenuItem value="Yahoo Finance">Yahoo Finance</MenuItem>
+            <MenuItem value="Binance">Binance</MenuItem>
+          </Select>
+        </FormControl>
   
           {/* Dates */}
           <Box

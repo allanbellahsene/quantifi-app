@@ -16,12 +16,22 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
-  InputAdornment
+  InputAdornment,
+  Collapse,
 } from '@mui/material';
-import { Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
-import RuleComponent from './RuleComponent'; 
-import { ExpandMore as ExpandMoreIcon, ExpandLess as ExpandLessIcon } from '@mui/icons-material';
-import Collapse from '@mui/material/Collapse';
+import {
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  ContentCopy as ContentCopyIcon,
+} from '@mui/icons-material';
+import RuleComponent from './RuleComponent';
+
+const AVAILABLE_FREQUENCIES = {
+  'Yahoo Finance': ['Daily'],
+  'Binance': ['Daily', '4h', '1h', '30m', '15m', '10m', '5m', '1m'],
+};
 
 
 const StrategyBuilder = ({
@@ -36,6 +46,8 @@ const StrategyBuilder = ({
   removeRule,
   addRule,
   toggleStrategyCollapse,
+  duplicateStrategy, // Added prop
+  dataSource,
 }) => {
   return (
     <Paper elevation={3} sx={{ mb: 4, p: 4, borderRadius: 2 }}>
@@ -62,11 +74,18 @@ const StrategyBuilder = ({
                 {strategy.collapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
               </IconButton>
               <IconButton
+                onClick={() => duplicateStrategy(strategyIndex)}
+                color="primary"
+                size="small"
+              >
+                <ContentCopyIcon />
+              </IconButton>
+              <IconButton
                 onClick={() => deleteStrategy(strategyIndex)}
                 color="error"
                 size="small"
               >
-              <DeleteIcon />
+                <DeleteIcon />
               </IconButton>
             </Box>
           </Box>
@@ -124,6 +143,27 @@ const StrategyBuilder = ({
                   >
                     <MenuItem value="long">Long</MenuItem>
                     <MenuItem value="short">Short</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+                {/* Add this Grid item for frequency selector */}
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth variant="outlined">
+                  <InputLabel>Data Frequency</InputLabel>
+                  <Select
+                    label="Data Frequency"
+                    value={strategy.frequency || ''}
+                    onChange={(e) =>
+                      updateStrategy(
+                        strategyIndex,
+                        'frequency',
+                        e.target.value
+                      )
+                    }
+                  >
+                    {AVAILABLE_FREQUENCIES[dataSource].map((freq) => (
+                      <MenuItem key={freq} value={freq}>{freq}</MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </Grid>

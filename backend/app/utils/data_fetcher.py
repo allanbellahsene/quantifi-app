@@ -29,6 +29,23 @@ class RateLimiter:
 class RateLimitException(Exception):
     pass
 
+
+def map_symbol_to_binance(symbol: str) -> str:
+    """
+    Map a symbol to Binance's format.
+    """
+    # Replace '-' with '' and change 'USD' to 'USDT'
+    if '-' in symbol:
+        base, quote = symbol.split('-')
+        if quote == 'USD':
+            quote = 'USDT'
+        binance_symbol = f'{base}{quote}'
+    else:
+        binance_symbol = symbol
+
+    return binance_symbol.upper()
+
+
 @RateLimiter(max_calls=5, period=60)  # 5 calls per minute
 def fetch_binance_data(symbol: str, start_date: str, end_date: str, interval='1d'):
     try:
@@ -37,6 +54,8 @@ def fetch_binance_data(symbol: str, start_date: str, end_date: str, interval='1d
         # Convert date strings to milliseconds timestamp
         start_ms = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
         end_ms = int(datetime.strptime(end_date, "%Y-%m-%d").timestamp() * 1000)
+
+        symbol = map_symbol_to_binance(symbol)
         
         # Fetch klines data
         klines = client.get_historical_klines(symbol, interval, start_ms, end_ms)
@@ -58,6 +77,7 @@ def fetch_binance_data(symbol: str, start_date: str, end_date: str, interval='1d
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         
         logger.info(f"Successfully fetched data for {symbol} from {start_date} to {end_date}")
+        df.index.names = ['Date']
         return df
     
     except RateLimitException as e:
@@ -83,3 +103,23 @@ def download_yf_data(symbol: str, start: str, end: str) -> pd.DataFrame:
     df: pd.DataFrame = yf.download(symbol, start=start, end=end)[['Open', 'High', 'Low', 'Close', 'Volume']]
     btc: pd.DataFrame = yf.download('BTC-USD', start=start, end=end)[['Close']].rename(columns={'Close': 'BTC-USD'})
     return df.merge(btc, right_index=True, left_index=True, how='left')
+
+if __name__ == "__main__":
+    df_yf = download_yf_data(symbol='BTC-USD', start='2020-01-01', end='2024-01-01')
+    df_binance = fetch_binance_data(symbol='BTCUSDT', start_date='2020-01-01', end_date='2024-01-01',
+    interval='30m')
+
+    #### I AM COMPARING THE STRUCTURE OF THE YAHOO FINANCE AND BINANCE DATA, IN ORDER TO DEFINE A COMMON STRUCTURE FOR ALL MY DATASOURCES
+    ### SINCE THE APP CURRENTLY WORKS WITH YAHOO FINANCE DATA, ALL SUBSEQUENT DATA SOURCES WILL BE STRUCTURED IN THE SAME WAY AS YAHOO FINANCE
+
+    print('Yahoo finance data:')
+    print(df_yf.columns)
+    print(df_yf.index)
+
+    print('Binance data:')
+    print(df_binance.columns)
+    print(df_binance.index)
+
+    print(df_yf.head())
+
+    print(df_binance.head())
