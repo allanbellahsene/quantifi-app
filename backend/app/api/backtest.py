@@ -11,6 +11,7 @@ from app.utils.data_fetcher import download_yf_data, fetch_binance_data
 from pydantic import validator
 from app.services.backtest.trade_analysis import analyze_all_trades
 import numpy as np
+import time
 
 class RuleInput(BaseModel):
     leftIndicator: str
@@ -64,6 +65,7 @@ class BacktestInput(BaseModel):
 async def backtest(input: BacktestInput):
     try:
         print(f"Received backtest input: {input}")
+        total_start_time = time.time()
 
         # Collect unique frequencies from the strategies
         frequencies = set(s.frequency for s in input.strategies)
@@ -75,7 +77,10 @@ async def backtest(input: BacktestInput):
                 if freq != 'Daily':
                     raise ValueError(f'Yahoo Finance only supports Daily frequency, but {freq} was requested.')
                 print('DOWNLOAD YF DATA:')
+                data_start_time = time.time()
                 df = download_yf_data(input.symbol, input.start, input.end)
+                data_end_time = time.time()
+                print(f"Yahoo Data downloaded  (Time taken: {data_end_time - data_start_time:.4f} seconds)")
                 print('DF:')
                 print(df.head())
             elif input.data_source == 'Binance':
@@ -92,10 +97,16 @@ async def backtest(input: BacktestInput):
                 interval = interval_map.get(freq)
                 if interval is None:
                     raise ValueError(f'Invalid frequency {freq} for Binance data source.')
+                data_start_time = time.time()
                 df = fetch_binance_data(input.symbol, input.start, input.end, interval=interval)
+                data_end_time = time.time()
+                print(f"Binance Data downloaded  (Time taken: {data_end_time - data_start_time:.4f} seconds)")
             else:
                 raise ValueError(f'Data source can only be "Yahoo Finance" or "Binance"')
             data_dict[freq] = df
+
+        
+        strategy_iter_start_time = time.time()
 
         strategies_results = []
         strategies_info = []
@@ -104,8 +115,11 @@ async def backtest(input: BacktestInput):
             print(f"Processing strategy: {s.name}")
             try:
                 df = data_dict[s.frequency].copy()
+                rule_start_time = time.time()
                 entry_rule_str = construct_rule_string(s.entryRules)
                 exit_rule_str = construct_rule_string(s.exitRules)
+                rule_end_time = time.time()
+                print(f"Rule Parsing (Time taken: {rule_end_time - rule_start_time:.4f} seconds)")
 
                 print(f"Entry rules: {entry_rule_str}")
                 print(f"Exit rules: {exit_rule_str}")
@@ -127,6 +141,8 @@ async def backtest(input: BacktestInput):
                 else:
                     raise ValueError(f"Unknown position_size_method: {s.position_size_method}")
 
+                strategy_start_time = time.time()
+
                 strategy = Strategy(
                     name=s.name,
                     entry_rules=entry_rule_str,
@@ -142,6 +158,11 @@ async def backtest(input: BacktestInput):
                     max_leverage=s.max_leverage,
                     frequency=s.frequency,
                 )
+
+                strategy_end_time = time.time()
+
+                print(f"Strategy Definition (Time taken: {strategy_end_time - strategy_start_time:.4f} seconds)")
+
 
                 # Run backtest for this strategy
                 df_result = run_backtest(df, strategy, input.fees, input.slippage)
@@ -233,6 +254,9 @@ async def backtest(input: BacktestInput):
 
         # Convert NaN values to None (null in JSON)
         result = nan_to_null(result)
+
+        total_end_time = time.time()
+        print(f"Backtest for strategy {strategy.name} completed in {total_end_time - total_start_time:.4f} seconds.")
 
         return result
 
