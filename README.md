@@ -41,31 +41,49 @@ By streamlining the strategy research workflow, QuantiFi empowers traders to exp
    cd quantifi-app/backend
    ```
 
-2. Create a virtual environment:
+2. Install Python 3 and Required Packages:
    ```
+   sudo apt install python3 python3-venv python3-pip -y
+   ```
+
+3. Create a virtual environment inside the backend directory:
+   ```
+   cd backend
    python -m venv venv
    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
    ```
 
-3. Install dependencies:
+4. Install dependencies:
    ```
    pip install -r requirements.txt
    ```
 
-4. Create a `.env` file in the `backend` directory and add the following:
-   ```
-   SECRET_KEY=your_secret_key_here
-   DATABASE_URL=sqlite:///./test.db
-   ```
-
 ### Frontend Setup
 
-1. Navigate to the frontend directory:
+1. Open a new terminal and navigate to the frontend directory:
    ```
    cd ../frontend
    ```
 
-2. Install dependencies:
+2. If not already installed, install Node.js and npm:
+
+- Add the NodeSource PPA for the Latest LTS Version:
+   ```
+   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+   ```
+
+- Install Node.js and npm:
+   ```
+   sudo apt install nodejs -y
+   ```
+
+- Verify the installation:
+   ```
+   node -v
+   npm -v
+   ```
+
+3. Install dependencies:
    ```
    npm install
    ```
@@ -97,7 +115,7 @@ By streamlining the strategy research workflow, QuantiFi empowers traders to exp
 1. Start the backend server:
    ```
    cd backend
-   uvicorn app.main:app --reload
+   uvicorn app.main:app --reload --port 8001
    ```
 
 2. In a new terminal, start the frontend development server:
