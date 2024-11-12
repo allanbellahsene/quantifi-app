@@ -1,4 +1,3 @@
-// Import necessary components
 import React from 'react';
 import {
   Box,
@@ -9,10 +8,122 @@ import {
   Select,
   MenuItem,
   IconButton,
-  Switch,
+  RadioGroup,
   FormControlLabel,
+  Radio,
+  Typography,
+  Paper,
 } from '@mui/material';
 import { Delete as DeleteIcon } from '@mui/icons-material';
+
+const IndicatorSection = ({ side, indicator, updateRule, updateIndicatorParam, strategyIndex, ruleIndex, ruleType, indicators }) => (
+  <Paper elevation={0} sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+      {side} Side
+    </Typography>
+    
+    <RadioGroup
+      row
+      value={indicator?.type || 'simple'}
+      onChange={(e) =>
+        updateRule(
+          strategyIndex,
+          ruleIndex,
+          ruleType,
+          `${side.toLowerCase()}IndicatorType`,
+          e.target.value
+        )
+      }
+    >
+      <FormControlLabel value="simple" control={<Radio size="small" />} label="Simple" />
+      <FormControlLabel value="composite" control={<Radio size="small" />} label="Composite" />
+    </RadioGroup>
+
+    {indicator?.type === 'simple' ? (
+      <>
+        <FormControl fullWidth variant="outlined" size="small" sx={{ mt: 1 }}>
+          <InputLabel>Indicator</InputLabel>
+          <Select
+            label="Indicator"
+            value={indicator?.name || ''}
+            onChange={(e) => {
+              updateRule(
+                strategyIndex,
+                ruleIndex,
+                ruleType,
+                `${side.toLowerCase()}IndicatorName`,
+                e.target.value
+              );
+              // Set default series parameter if needed
+              const selectedIndicator = indicators.find(i => i.name === e.target.value);
+              if (selectedIndicator?.params.includes('series')) {
+                updateIndicatorParam(
+                  strategyIndex,
+                  ruleIndex,
+                  ruleType,
+                  side.toLowerCase(),
+                  'series',
+                  'Close'
+                );
+              }
+            }}
+          >
+            {indicators.map((ind) => (
+              <MenuItem key={ind.name} value={ind.name}>
+                {ind.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        {indicator?.name &&
+          indicators
+            .find((i) => i.name === indicator.name)
+            ?.params.map((param) => (
+              <TextField
+                key={param}
+                label={param}
+                size="small"
+                value={indicator?.params?.[param] || (param === 'series' ? 'Close' : '')}
+                onChange={(e) =>
+                  updateIndicatorParam(
+                    strategyIndex,
+                    ruleIndex,
+                    ruleType,
+                    side.toLowerCase(),
+                    param,
+                    e.target.value
+                  )
+                }
+                variant="outlined"
+                fullWidth
+                sx={{ mt: 1 }}
+              />
+            ))}
+      </>
+    ) : (
+      <TextField
+        label="Composite Expression"
+        size="small"
+        placeholder="e.g., max(SMA(Close,20), EMA(Close,50))"
+        value={indicator?.expression || ''}
+        onChange={(e) =>
+          updateRule(
+            strategyIndex,
+            ruleIndex,
+            ruleType,
+            `${side.toLowerCase()}IndicatorExpression`,
+            e.target.value
+          )
+        }
+        variant="outlined"
+        fullWidth
+        sx={{ mt: 1 }}
+        helperText="Use functions: max, min, mean, add, subtract, multiply, divide"
+      />
+    )}
+  </Paper>
+);
 
 const RuleComponent = ({
   rule,
@@ -24,26 +135,15 @@ const RuleComponent = ({
   removeRule,
   indicators,
 }) => {
-  if (!rule) {
-    console.error('Rule is undefined:', { ruleIndex, strategyIndex, ruleType });
-    return null;
-  }
+  if (!rule) return null;
 
   return (
-    <Box
-      sx={{
-        p: 2,
-        mb: 2,
-        border: '1px solid',
-        borderColor: 'grey.300',
-        borderRadius: 1,
-        backgroundColor: 'grey.50',
-      }}
-    >
-      <Grid container spacing={2} alignItems="center">
+    <Box sx={{ mb: 2 }}>
+      <Grid container spacing={2} alignItems="flex-start">
+        {/* Logical Operator (for rules after the first one) */}
         {ruleIndex > 0 && (
-          <Grid item xs={12} md={2}>
-            <FormControl fullWidth variant="outlined">
+          <Grid item xs={12}>
+            <FormControl fullWidth variant="outlined" size="small">
               <InputLabel>Logic</InputLabel>
               <Select
                 label="Logic"
@@ -58,193 +158,85 @@ const RuleComponent = ({
                   )
                 }
               >
-                {['and', 'or'].map((op) => (
-                  <MenuItem key={op} value={op}>
-                    {op.toUpperCase()}
-                  </MenuItem>
-                ))}
+                <MenuItem value="and">AND</MenuItem>
+                <MenuItem value="or">OR</MenuItem>
               </Select>
             </FormControl>
           </Grid>
         )}
-        <Grid item xs={12} md={ruleIndex > 0 ? 10 : 12}>
-          <Grid container spacing={2} alignItems="center">
-            {/* Left Indicator */}
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth variant="outlined">
-                <InputLabel>Left Indicator</InputLabel>
-                <Select
-                  label="Left Indicator"
-                  value={rule.leftIndicator || ''}
-                  onChange={(e) =>
-                    updateRule(
-                      strategyIndex,
-                      ruleIndex,
-                      ruleType,
-                      'leftIndicator',
-                      e.target.value
-                    )
-                  }
-                >
-                  {indicators.map((indicator) => (
-                    <MenuItem key={indicator.name} value={indicator.name}>
-                      {indicator.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            {/* Left Indicator Params */}
-            {rule.leftIndicator &&
-              indicators
-                .find((i) => i.name === rule.leftIndicator)
-                ?.params.map((param) => (
-                  <Grid item xs={12} md={2} key={param}>
-                    <TextField
-                      label={param}
-                      value={rule.leftParams?.[param] || (param === 'series' ? 'Close' : '')}
-                      onChange={(e) =>
-                        updateIndicatorParam(
-                          strategyIndex,
-                          ruleIndex,
-                          ruleType,
-                          'left',
-                          param,
-                          e.target.value
-                        )
-                      }
-                      variant="outlined"
-                      fullWidth
-                    />
-                  </Grid>
-                ))}
-            {/* Operator */}
-            <Grid item xs={12} md={2}>
-              <FormControl fullWidth variant="outlined">
-                <InputLabel>Operator</InputLabel>
-                <Select
-                  label="Operator"
-                  value={rule.operator || '<'}
-                  onChange={(e) =>
-                    updateRule(
-                      strategyIndex,
-                      ruleIndex,
-                      ruleType,
-                      'operator',
-                      e.target.value
-                    )
-                  }
-                >
-                  {['<', '<=', '>', '>=', '==', '!='].map((op) => (
-                    <MenuItem key={op} value={op}>
-                      {op}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            {/* Right Indicator Switch */}
-            <Grid item xs={12} md={2}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={rule.useRightIndicator || false}
-                    onChange={(e) =>
-                      updateRule(
-                        strategyIndex,
-                        ruleIndex,
-                        ruleType,
-                        'useRightIndicator',
-                        e.target.checked
-                      )
-                    }
-                  />
-                }
-                label="Use Indicator"
-              />
-            </Grid>
-            {/* Right Indicator or Value */}
-            {rule.useRightIndicator ? (
-              <>
-                <Grid item xs={12} md={3}>
-                  <FormControl fullWidth variant="outlined">
-                    <InputLabel>Right Indicator</InputLabel>
+
+        {/* Rule Components */}
+        <Grid item xs={12}>
+          <Paper elevation={1} sx={{ p: 2, backgroundColor: 'background.paper' }}>
+            <Grid container spacing={2} alignItems="flex-start">
+              {/* Left Indicator */}
+              <Grid item xs={12} md={5}>
+                <IndicatorSection
+                  side="Left"
+                  indicator={rule.leftIndicator}
+                  updateRule={updateRule}
+                  updateIndicatorParam={updateIndicatorParam}
+                  strategyIndex={strategyIndex}
+                  ruleIndex={ruleIndex}
+                  ruleType={ruleType}
+                  indicators={indicators}
+                />
+              </Grid>
+
+              {/* Operator */}
+              <Grid item xs={12} md={2}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '100px' }}>
+                  <FormControl fullWidth variant="outlined" size="small">
+                    <InputLabel>Operator</InputLabel>
                     <Select
-                      label="Right Indicator"
-                      value={rule.rightIndicator || ''}
+                      label="Operator"
+                      value={rule.operator || '<'}
                       onChange={(e) =>
                         updateRule(
                           strategyIndex,
                           ruleIndex,
                           ruleType,
-                          'rightIndicator',
+                          'operator',
                           e.target.value
                         )
                       }
                     >
-                      {indicators.map((indicator) => (
-                        <MenuItem key={indicator.name} value={indicator.name}>
-                          {indicator.name}
+                      {['<', '<=', '>', '>=', '==', '!='].map((op) => (
+                        <MenuItem key={op} value={op}>
+                          {op}
                         </MenuItem>
                       ))}
                     </Select>
                   </FormControl>
-                </Grid>
-                {rule.rightIndicator &&
-                  indicators
-                    .find((i) => i.name === rule.rightIndicator)
-                    ?.params.map((param) => (
-                      <Grid item xs={12} md={2} key={param}>
-                        <TextField
-                          label={param}
-                          value={rule.rightParams?.[param] || (param === 'series' ? 'Close' : '')}
-                          onChange={(e) =>
-                            updateIndicatorParam(
-                              strategyIndex,
-                              ruleIndex,
-                              ruleType,
-                              'right',
-                              param,
-                              e.target.value
-                            )
-                          }
-                          variant="outlined"
-                          fullWidth
-                        />
-                      </Grid>
-                    ))}
-              </>
-            ) : (
-              <Grid item xs={12} md={2}>
-                <TextField
-                  label="Value"
-                  value={rule.rightValue || ''}
-                  onChange={(e) =>
-                    updateRule(
-                      strategyIndex,
-                      ruleIndex,
-                      ruleType,
-                      'rightValue',
-                      e.target.value
-                    )
-                  }
-                  variant="outlined"
-                  fullWidth
+                </Box>
+              </Grid>
+
+              {/* Right Indicator */}
+              <Grid item xs={12} md={5}>
+                <IndicatorSection
+                  side="Right"
+                  indicator={rule.rightIndicator}
+                  updateRule={updateRule}
+                  updateIndicatorParam={updateIndicatorParam}
+                  strategyIndex={strategyIndex}
+                  ruleIndex={ruleIndex}
+                  ruleType={ruleType}
+                  indicators={indicators}
                 />
               </Grid>
-            )}
-            {/* Delete Rule Button */}
-            <Grid item xs={12} md="auto">
+            </Grid>
+
+            {/* Delete Button */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
               <IconButton
-                onClick={() =>
-                  removeRule(strategyIndex, ruleIndex, ruleType)
-                }
+                onClick={() => removeRule(strategyIndex, ruleIndex, ruleType)}
                 color="error"
+                size="small"
               >
                 <DeleteIcon />
               </IconButton>
-            </Grid>
-          </Grid>
+            </Box>
+          </Paper>
         </Grid>
       </Grid>
     </Box>
@@ -252,3 +244,5 @@ const RuleComponent = ({
 };
 
 export default RuleComponent;
+
+

@@ -102,7 +102,9 @@ def download_yf_data(symbol: str, start: str, end: str) -> pd.DataFrame:
     """
     df: pd.DataFrame = yf.download(symbol, start=start, end=end)[['Open', 'High', 'Low', 'Close', 'Volume']]
     btc: pd.DataFrame = yf.download('BTC-USD', start=start, end=end)[['Close']].rename(columns={'Close': 'BTC-USD'})
-    return df.merge(btc, right_index=True, left_index=True, how='left')
+    df= df.merge(btc, right_index=True, left_index=True, how='left')
+    df.columns = df.columns.get_level_values(0)
+    return df
 
 if __name__ == "__main__":
     df_yf = download_yf_data(symbol='BTC-USD', start='2020-01-01', end='2024-01-01')

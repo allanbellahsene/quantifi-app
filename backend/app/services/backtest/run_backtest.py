@@ -5,6 +5,7 @@ import numpy as np
 from typing import List
 from app.services.strategy_module.strategy import Strategy
 from app.services.strategy_module.utils import add_indicators
+from app.services.backtest.metrics import rolling_sharpe_ratio
 import time
 
 
@@ -45,10 +46,14 @@ def run_backtest(df: pd.DataFrame, strategy: Strategy, fees: float, slippage: fl
     positions_end_time = time.time()
     print(f"Positions calculated (Time taken: {positions_end_time - positions_start_time:.4f} seconds)")
 
+    # Percentage change of Close prices
+    close_pct_change = df['Close'].pct_change() #need to reshape otherwise using this in a column calculation wont work
+    log_returns = np.log(df['Close'] / df['Close'].shift())
+
+ 
     # Calculate returns
-    df[f'{strategy.name}_returns'] = df[f'{strategy.name}_position'].shift() * df['Close'].pct_change() - \
-                                        df[f'{strategy.name}_position'].diff().abs() * (fees + slippage)
-    df[f'{strategy.name}_log_returns'] = df[f'{strategy.name}_position'].shift() * np.log(df['Close'] / df['Close'].shift()) - \
+    df[f'{strategy.name}_returns'] = df[f'{strategy.name}_position'].shift() * close_pct_change - df[f'{strategy.name}_position'].diff().abs() * (fees + slippage)
+    df[f'{strategy.name}_log_returns'] = df[f'{strategy.name}_position'].shift() * log_returns - \
                                             df[f'{strategy.name}_position'].diff().abs() * (fees + slippage)
 
     # Calculate cumulative returns
@@ -61,21 +66,19 @@ def run_backtest(df: pd.DataFrame, strategy: Strategy, fees: float, slippage: fl
 
     # Calculate rolling Sharpe ratio
     window = 90  # rolling window size in days
-    df[f'{strategy.name}_rolling_sharpe'] = df[f'{strategy.name}_returns'].rolling(window).apply(
-        lambda x: (x.mean() / x.std()) * np.sqrt(365) if x.std() != 0 else 0)
+    df[f'{strategy.name}_rolling_sharpe'] = rolling_sharpe_ratio(df[f'{strategy.name}_returns'], window)
     
     strategy_calc_end = time.time()
     print(f"Strategy signals, positions and metrics calculations {strategy.name} completed in {strategy_calc_end - strategy_calc_start:.4f} seconds.")
 
     # Calculate market returns and metrics
-    df['returns'] = df['Close'].pct_change()
-    df['log_returns'] = np.log(df['Close'] / df['Close'].shift())
+    df['returns'] = close_pct_change
+    df['log_returns'] = log_returns
     df['cumulative_market_equity'] = (1 + df['returns']).cumprod()
     df['cumulative_market_returns'] = df['cumulative_market_equity'] - 1
     df['cumulative_log_market_equity'] = df['log_returns'].cumsum()
     df['market_drawdown'] = 1 - df['cumulative_market_equity'] / df['cumulative_market_equity'].cummax()
-    df['market_rolling_sharpe'] = df['returns'].rolling(window).apply(
-        lambda x: (x.mean() / x.std()) * np.sqrt(365) if x.std() != 0 else 0)
+    df['market_rolling_sharpe'] = rolling_sharpe_ratio(df['returns'], window)
 
     print(f"Backtest for strategy {strategy.name} completed.")
     # Optionally save to CSV for debugging

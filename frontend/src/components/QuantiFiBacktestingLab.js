@@ -33,13 +33,25 @@ const INDICATORS = [
   { name: 'Low', params: [] },
   { name: 'Close', params: [] },
   { name: 'Volume', params: [] },
-  { name: 'SMA', params: ['series', 'period'] },
-  { name: 'EMA', params: ['series', 'period'] },
-  { name: 'Rolling_High', params: ['series', 'period'] },
-  { name: 'Rolling_Low', params: ['series', 'period'] },
+  { name: 'SMA', params: ['series', 'window'] },
+  { name: 'EMA', params: ['series', 'window'] },
+  { name: 'Rolling_High', params: ['series', 'window'] },
+  { name: 'Rolling_Low', params: ['series', 'window'] },
   { name: 'MA_trend', params: ['series', 'ma_window', 'return_window'] },
-  { name: 'VWAP', params: [] },  
+  { name: 'VWAP', params: [] },
 ];
+
+
+const indicatorTemplate = {
+  type: 'simple',   // 'simple' or 'composite'
+  name: '',         // Name of the indicator (for simple indicators)
+  params: {},       // Parameters for the indicator (for simple indicators)
+  expression: '',   // Expression for composite indicators
+  function: '',     // Function name (for composite indicators)
+  indicators: [],   // Array of Indicators (for composite indicators)
+};
+
+
 
 const QuantiFiBacktestingLab = () => {
   const [asset, setAsset] = useState('BTC-USD');
@@ -153,12 +165,10 @@ const QuantiFiBacktestingLab = () => {
   const addRule = (strategyIndex, ruleType) => {
     const updatedStrategies = [...strategies];
     const newRule = {
-      leftIndicator: '',
-      leftParams: { series: 'Close' }, // Set default 'series' parameter
+      leftIndicator: { ...indicatorTemplate },
       operator: '<',
       useRightIndicator: false,
-      rightIndicator: '',
-      rightParams: { series: 'Close' }, // Set default 'series' parameter
+      rightIndicator: { ...indicatorTemplate },
       rightValue: '',
       logicalOperator: 'and',
     };
@@ -169,36 +179,88 @@ const QuantiFiBacktestingLab = () => {
     setStrategies(updatedStrategies);
   };
   
-
+  
   const updateRule = (strategyIndex, ruleIndex, ruleType, field, value) => {
-    console.log('Updating rule:', { strategyIndex, ruleIndex, ruleType, field, value });
     const updatedStrategies = [...strategies];
-    if (field === 'leftIndicator' || field === 'rightIndicator') {
-      const indicator = INDICATORS.find(i => i.name === value);
-      updatedStrategies[strategyIndex][ruleType][ruleIndex][field] = value;
-      updatedStrategies[strategyIndex][ruleType][ruleIndex][field === 'leftIndicator' ? 'leftParams' : 'rightParams'] = 
-        indicator ? indicator.params.reduce((acc, param) => ({ ...acc, [param]: '' }), {}) : {};
+    const rule = updatedStrategies[strategyIndex][ruleType][ruleIndex];
+  
+    if (field === 'leftIndicatorType') {
+      rule.leftIndicator.type = value;
+      if (value === 'simple') {
+        rule.leftIndicator.expression = '';
+        rule.leftIndicator.name = '';
+        rule.leftIndicator.params = {};
+      } else if (value === 'composite') {
+        rule.leftIndicator.name = '';
+        rule.leftIndicator.params = {};
+        // Do not reset 'expression' to preserve user input
+        if (!rule.leftIndicator.expression) {
+          rule.leftIndicator.expression = '';
+        }
+      }
+    } else if (field === 'rightIndicatorType') {
+      rule.rightIndicator.type = value;
+      if (value === 'simple') {
+        rule.rightIndicator.expression = '';
+        rule.rightIndicator.name = '';
+        rule.rightIndicator.params = {};
+      } else if (value === 'composite') {
+        rule.rightIndicator.name = '';
+        rule.rightIndicator.params = {};
+        if (!rule.rightIndicator.expression) {
+          rule.rightIndicator.expression = '';
+        }
+      }
+    } else if (field === 'leftIndicatorName') {
+      rule.leftIndicator.name = value;
+      // Reset params when the indicator name changes
+      rule.leftIndicator.params = {};
+    } else if (field === 'rightIndicatorName') {
+      rule.rightIndicator.name = value;
+      // Reset params when the indicator name changes
+      rule.rightIndicator.params = {};
+    } else if (field === 'leftIndicatorExpression') {
+      rule.leftIndicator.expression = value;
+    } else if (field === 'rightIndicatorExpression') {
+      rule.rightIndicator.expression = value;
     } else if (field === 'useRightIndicator') {
-      updatedStrategies[strategyIndex][ruleType][ruleIndex].useRightIndicator = value;
+      rule.useRightIndicator = value;
       if (!value) {
-        updatedStrategies[strategyIndex][ruleType][ruleIndex].rightValue = '';
+        // If not using a right indicator, reset the right indicator fields
+        rule.rightIndicator = { ...indicatorTemplate };
+        rule.rightValue = '';
       } else {
-        updatedStrategies[strategyIndex][ruleType][ruleIndex].rightIndicator = '';
-        updatedStrategies[strategyIndex][ruleType][ruleIndex].rightParams = {};
+        // If using a right indicator, ensure it's initialized
+        if (!rule.rightIndicator) {
+          rule.rightIndicator = { ...indicatorTemplate };
+        }
       }
     } else if (field === 'rightValue') {
-      updatedStrategies[strategyIndex][ruleType][ruleIndex].rightValue = value;
+      rule.rightValue = value;
     } else {
-      updatedStrategies[strategyIndex][ruleType][ruleIndex][field] = value;
+      // For other fields like 'operator' and 'logicalOperator'
+      rule[field] = value;
     }
     setStrategies(updatedStrategies);
   };
+  
+  
 
   const updateIndicatorParam = (strategyIndex, ruleIndex, ruleType, side, param, value) => {
     const updatedStrategies = [...strategies];
-    updatedStrategies[strategyIndex][ruleType][ruleIndex][`${side}Params`][param] = value || 'Close'; // Default to 'Close' if empty
+    const rule = updatedStrategies[strategyIndex][ruleType][ruleIndex];
+    if (!rule[`${side}Indicator`].params) {
+      rule[`${side}Indicator`].params = {};
+    }
+    // Default 'series' parameter to 'Close' if empty
+    if (param === 'series' && !value) {
+      rule[`${side}Indicator`].params[param] = 'Close';
+    } else {
+      rule[`${side}Indicator`].params[param] = value;
+    }
     setStrategies(updatedStrategies);
   };
+  
   
 
   const removeRule = (strategyIndex, ruleIndex, ruleType) => {
@@ -240,35 +302,56 @@ const QuantiFiBacktestingLab = () => {
   const runBacktest = async () => {
     setIsLoading(true);
     setError(null);
-
+  
     try {
-        // Prepare strategies data
-        const strategiesToSend = strategies.map((strategy) => {
-          const strategyData = {
-            name: strategy.name,
-            allocation: strategy.allocation,
-            entryRules: strategy.entryRules,
-            exitRules: strategy.exitRules,
-            positionType: strategy.positionType,
-            active: strategy.active,
-            position_size_method: strategy.position_size_method,
-            max_leverage: strategy.max_leverage,
-            frequency: strategy.frequency,
-          };
-        
-          if (strategy.position_size_method === 'fixed') {
-            strategyData.fixed_position_size = strategy.fixed_position_size;
-          } else if (strategy.position_size_method === 'volatility_target') {
-            strategyData.volatility_target = strategy.volatility_target;
-            strategyData.volatility_buffer = strategy.volatility_buffer;
-            strategyData.volatility_lookback = strategy.volatility_lookback;
-          }
-        
-          return strategyData;
-        });
-        
-
-      // Log the payload
+      // Function to process indicators
+      const processIndicator = (indicator) => {
+        return {
+          type: indicator.type,
+          name: indicator.name,
+          params: indicator.params, // Keep params as a dictionary
+          expression: indicator.expression,
+        };
+      };
+  
+      // Function to process rules
+      const processRules = (rules) => {
+        return rules.map((rule) => ({
+          operator: rule.operator,
+          useRightIndicator: rule.useRightIndicator,
+          rightValue: rule.rightValue,
+          logicalOperator: rule.logicalOperator,
+          leftIndicator: processIndicator(rule.leftIndicator),
+          rightIndicator: rule.useRightIndicator ? processIndicator(rule.rightIndicator) : null,
+        }));
+      };
+  
+      // Prepare strategies data
+      const strategiesToSend = strategies.map((strategy) => {
+        const strategyData = {
+          name: strategy.name,
+          allocation: strategy.allocation,
+          entryRules: processRules(strategy.entryRules),
+          exitRules: processRules(strategy.exitRules),
+          positionType: strategy.positionType,
+          active: strategy.active,
+          position_size_method: strategy.position_size_method,
+          max_leverage: strategy.max_leverage,
+          frequency: strategy.frequency,
+        };
+  
+        if (strategy.position_size_method === 'fixed') {
+          strategyData.fixed_position_size = strategy.fixed_position_size;
+        } else if (strategy.position_size_method === 'volatility_target') {
+          strategyData.volatility_target = strategy.volatility_target;
+          strategyData.volatility_buffer = strategy.volatility_buffer;
+          strategyData.volatility_lookback = strategy.volatility_lookback;
+        }
+  
+        return strategyData;
+      });
+  
+      // Log the payload for debugging
       console.log('Backtest request payload:', {
         symbol: asset,
         data_source: dataSource,
@@ -278,8 +361,8 @@ const QuantiFiBacktestingLab = () => {
         slippage,
         strategies: strategiesToSend,
       });
-
-      const response = await fetch('http://localhost:8001/api/backtest', {
+  
+      const response = await fetch('http://localhost:8002/api/backtest', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -294,12 +377,12 @@ const QuantiFiBacktestingLab = () => {
           strategies: strategiesToSend,
         }),
       });
-
+  
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Failed to run backtest');
       }
-
+  
       const data = await response.json();
       console.log('Backtest API response:', data);
       console.log('Trades data:', data.trades);
@@ -310,6 +393,8 @@ const QuantiFiBacktestingLab = () => {
       setIsLoading(false);
     }
   };
+  
+  
 
   return (
     <div className="container mx-auto p-4">

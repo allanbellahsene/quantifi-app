@@ -6,15 +6,18 @@ from app.services.strategy_module.expressions import CompositeRule
 
 def generate_signals(df: pd.DataFrame, entry_signal: CompositeRule, exit_signal: CompositeRule, position_type: int = 1) -> pd.Series:
     """Generate trading signals based on entry and exit rules."""
-    entry: np.ndarray = entry_signal.evaluate(df)
-    exit: np.ndarray = exit_signal.evaluate(df)
+    entry: np.ndarray = entry_signal.evaluate(df).flatten()
+    exit: np.ndarray = exit_signal.evaluate(df).flatten()
+
 
     position: np.ndarray = np.zeros(len(df), dtype=int)
     in_position: np.ndarray = np.zeros(len(df), dtype=bool)
 
     position = np.where(entry, position_type, position)
 
+
     for i in range(1, len(df)):
+
         if position[i] == 0:  # If no new signal
             if in_position[i - 1] and not exit[i]:
                 position[i] = position_type

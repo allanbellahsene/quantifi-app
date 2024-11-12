@@ -72,3 +72,18 @@ class Strategy:
         position_sizes = position_sizes.clip(upper=self.max_leverage)
         position_sizes = position_sizes.fillna(1)  # Fill NaN with 1; signals determine position
         return position_sizes
+
+
+if __name__ == "__main__":
+    from app.utils.data_fetcher import download_yf_data
+    df = download_yf_data(symbol='BTC-USD', start='2020-01-01', end='2024-01-01')
+    print(df)
+    rule_str = "Close > mean(SMA(Close,20), EMA(Close,50))"
+
+    # Parse the rule
+    composite_rule = parse_rule(rule_str)
+
+    # Evaluate the rule on your DataFrame df
+    signals = composite_rule.evaluate(df)
+
+    print(signals)

@@ -1,27 +1,45 @@
-#app.api.backtest.py
 from fastapi import HTTPException
-from pydantic import BaseModel
-from typing import List, Dict, Optional
+from pydantic import BaseModel, Field, validator
+from typing import List, Dict, Optional, Any, Union
 from app.services.backtest.run_backtest import run_backtest, Strategy
-from app.services.backtest.metrics import metrics_table
+from app.services.backtest.metrics import metrics_table, rolling_sharpe_ratio
+from app.services.backtest.trade_analysis import analyze_all_trades
 import traceback
 from app.utils.utils import numpy_to_python, nan_to_null
 import json
 from app.utils.data_fetcher import download_yf_data, fetch_binance_data
-from pydantic import validator
-from app.services.backtest.trade_analysis import analyze_all_trades
 import numpy as np
 import time
+import pandas as pd
+import re
+
+# Define the data models first
+class IndicatorInput(BaseModel):
+    type: str  # 'simple' or 'composite'
+    name: Optional[str] = None
+    params: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    expression: Optional[str] = None
+
+    @validator('params')
+    def validate_params(cls, v):
+        return v or {}
 
 class RuleInput(BaseModel):
-    leftIndicator: str
-    leftParams: Dict[str, str]
+    leftIndicator: IndicatorInput
     operator: str
     useRightIndicator: bool = True
-    rightIndicator: str = ""
-    rightParams: Dict[str, str] = {}
+    rightIndicator: Optional[IndicatorInput] = None
     rightValue: Optional[str] = None
     logicalOperator: str = "and"
+
+    @validator('rightIndicator', 'rightValue')
+    def validate_right_side(cls, v, values):
+        if 'useRightIndicator' in values:
+            if values['useRightIndicator'] and not v and isinstance(v, type(None)):
+                raise ValueError("Right indicator must be provided when useRightIndicator is True")
+            elif not values['useRightIndicator'] and isinstance(v, IndicatorInput):
+                return None
+        return v
 
 class StrategyInput(BaseModel):
     name: str
@@ -51,7 +69,6 @@ class StrategyInput(BaseModel):
             raise ValueError('volatility_target must be provided when position_size_method is "volatility_target"')
         return v
 
-
 class BacktestInput(BaseModel):
     symbol: str
     data_source: str
@@ -60,6 +77,80 @@ class BacktestInput(BaseModel):
     fees: float
     slippage: float
     strategies: List[StrategyInput]
+
+# Helper functions
+def construct_indicator_string(indicator: IndicatorInput) -> str:
+    try:
+        if not indicator:
+            raise ValueError("Indicator cannot be None")
+
+        if indicator.type == 'simple':
+            # For simple indicators
+            if not indicator.name:
+                raise ValueError("Simple indicator must have a name")
+            
+            params = []
+            if indicator.params:
+                for param_name in indicator.params:
+                    param_value = indicator.params[param_name]
+                    if param_name == 'series' and not param_value:
+                        param_value = 'Close'
+                    params.append(str(param_value))
+            
+            # Handle base indicators that don't need parameters
+            if indicator.name in ['Open', 'High', 'Low', 'Close', 'Volume', 'BTC-USD']:
+                return f"{indicator.name}()"
+            else:
+                return f"{indicator.name}({','.join(params)})" if params else f"{indicator.name}()"
+
+        elif indicator.type == 'composite':
+            # For composite indicators
+            expression = indicator.expression
+            if not expression:
+                raise ValueError("Composite indicator must have an expression")
+            return expression  # Return the expression directly
+        else:
+            raise ValueError(f"Unknown indicator type: {indicator.type}")
+            
+    except Exception as e:
+        print(f"Error in construct_indicator_string: {str(e)}")
+        print(f"Indicator data: {indicator}")
+        raise
+
+def construct_rule_string(rules: List[RuleInput]) -> str:
+    try:
+        rule_strings = []
+        for index, r in enumerate(rules):
+            if not r.leftIndicator:
+                raise ValueError(f"Rule {index + 1} is missing left indicator")
+            
+            # Construct left side
+            left = construct_indicator_string(r.leftIndicator)
+            
+            # Construct right side
+            if r.useRightIndicator:
+                if not r.rightIndicator:
+                    raise ValueError(f"Rule {index + 1} is set to use right indicator but no indicator is provided")
+                right = construct_indicator_string(r.rightIndicator)
+            else:
+                if not r.rightValue and r.rightValue != '0':
+                    raise ValueError(f"Rule {index + 1} needs either a right indicator or a value")
+                right = r.rightValue
+            
+            # Construct rule string
+            rule_str = f"{left} {r.operator} {right}"
+            
+            # Add logical operator for all rules except the first one
+            if index > 0:
+                rule_str = f"{r.logicalOperator} {rule_str}"
+            
+            rule_strings.append(rule_str)
+            
+        return " ".join(rule_strings)
+    except Exception as e:
+        print(f"Error in construct_rule_string: {str(e)}")
+        print(f"Rules data: {rules}")
+        raise
 
 
 async def backtest(input: BacktestInput):
@@ -105,17 +196,36 @@ async def backtest(input: BacktestInput):
                 raise ValueError(f'Data source can only be "Yahoo Finance" or "Binance"')
             data_dict[freq] = df
 
-        
-        strategy_iter_start_time = time.time()
+        print('Data stats:')
+        print(df.head())
+        print(df.columns)
+        print(df.shape)
+        print(type(df))
+
+        print(f"Received strategies: {input.strategies}")
 
         strategies_results = []
         strategies_info = []
         strategies_df_results = []  # Store per-strategy DataFrames before resampling
+        
+        # Process each strategy
         for s in input.strategies:
             print(f"Processing strategy: {s.name}")
             try:
                 df = data_dict[s.frequency].copy()
                 rule_start_time = time.time()
+
+                # Validate strategy rules before processing
+                for rule_type, rules in [("entry", s.entryRules), ("exit", s.exitRules)]:
+                    for i, rule in enumerate(rules):
+                        if not rule.leftIndicator:
+                            raise ValueError(f"Strategy '{s.name}' {rule_type} rule {i+1} is missing left indicator")
+                        if rule.useRightIndicator and not rule.rightIndicator:
+                            raise ValueError(f"Strategy '{s.name}' {rule_type} rule {i+1} requires right indicator but none provided")
+                        if not rule.useRightIndicator and not rule.rightValue and rule.rightValue != '0':
+                            raise ValueError(f"Strategy '{s.name}' {rule_type} rule {i+1} requires a value but none provided")
+
+                # Construct rule strings
                 entry_rule_str = construct_rule_string(s.entryRules)
                 exit_rule_str = construct_rule_string(s.exitRules)
                 rule_end_time = time.time()
@@ -124,25 +234,21 @@ async def backtest(input: BacktestInput):
                 print(f"Entry rules: {entry_rule_str}")
                 print(f"Exit rules: {exit_rule_str}")
 
-                # Initialize variables
-                fixed_position_size = None
-                volatility_target = None
-
-                # Handle position sizing based on the method
+                # Initialize position sizing parameters
                 if s.position_size_method == 'fixed':
                     if s.fixed_position_size is None:
-                        raise ValueError('fixed_position_size must be provided when position_size_method is "fixed"')
+                        raise ValueError(f"Strategy '{s.name}' requires fixed_position_size when using fixed position sizing")
                     fixed_position_size = s.fixed_position_size * s.allocation / 100
+                    volatility_target = None
                 elif s.position_size_method == 'volatility_target':
                     if s.volatility_target is None:
-                        raise ValueError('volatility_target must be provided when position_size_method is "volatility_target"')
-                    # Apply allocation to volatility_target
+                        raise ValueError(f"Strategy '{s.name}' requires volatility_target when using volatility targeting")
+                    fixed_position_size = None
                     volatility_target = s.volatility_target * s.allocation / 100
                 else:
-                    raise ValueError(f"Unknown position_size_method: {s.position_size_method}")
+                    raise ValueError(f"Strategy '{s.name}' has unknown position_size_method: {s.position_size_method}")
 
                 strategy_start_time = time.time()
-
                 strategy = Strategy(
                     name=s.name,
                     entry_rules=entry_rule_str,
@@ -158,11 +264,8 @@ async def backtest(input: BacktestInput):
                     max_leverage=s.max_leverage,
                     frequency=s.frequency,
                 )
-
                 strategy_end_time = time.time()
-
                 print(f"Strategy Definition (Time taken: {strategy_end_time - strategy_start_time:.4f} seconds)")
-
 
                 # Run backtest for this strategy
                 df_result = run_backtest(df, strategy, input.fees, input.slippage)
@@ -179,6 +282,7 @@ async def backtest(input: BacktestInput):
 
         # Combine strategy results
         print("Combining strategy results")
+        comb_start_time = time.time()
         combined_df = None
         for idx, df_result in enumerate(strategies_results):
             strategy = strategies_info[idx]
@@ -193,12 +297,11 @@ async def backtest(input: BacktestInput):
                 f'{strategy.name}_drawdown': 'last',
                 f'{strategy.name}_rolling_sharpe': 'last',
                 'Close': 'last',
-                # Add other columns as needed
             }
 
             # Ensure that the columns exist in df_result before aggregating
             agg_dict = {k: v for k, v in agg_dict.items() if k in df_result.columns}
-
+            
             df_resampled = df_result.resample('D').agg(agg_dict)
 
             if combined_df is None:
@@ -211,15 +314,9 @@ async def backtest(input: BacktestInput):
                 combined_df['portfolio_log_returns'] += df_resampled[f'{strategy.name}_log_returns'].fillna(0)
                 combined_df['total_position'] += df_resampled[f'{strategy.name}_position'].fillna(0)
 
-
             # Add strategy-specific columns to combined_df
-            combined_df[f'{strategy.name}_cumulative_equity'] = df_resampled[f'{strategy.name}_cumulative_equity']
-            combined_df[f'{strategy.name}_cumulative_log_equity'] = df_resampled[f'{strategy.name}_cumulative_log_equity']  # Ensure this column is added
-            combined_df[f'{strategy.name}_returns'] = df_resampled[f'{strategy.name}_returns']
-            combined_df[f'{strategy.name}_position'] = df_resampled[f'{strategy.name}_position']
-            combined_df[f'{strategy.name}_drawdown'] = df_resampled[f'{strategy.name}_drawdown']
-            combined_df[f'{strategy.name}_rolling_sharpe'] = df_resampled[f'{strategy.name}_rolling_sharpe']
-            combined_df[f'{strategy.name}_signal'] = df_resampled[f'{strategy.name}_signal']  # Add this line
+            for col in ['cumulative_equity', 'cumulative_log_equity', 'returns', 'position', 'drawdown', 'rolling_sharpe', 'signal']:
+                combined_df[f'{strategy.name}_{col}'] = df_resampled[f'{strategy.name}_{col}']
 
         # Calculate overall portfolio metrics
         combined_df['cumulative_equity'] = (1 + combined_df['portfolio_returns']).cumprod()
@@ -236,15 +333,14 @@ async def backtest(input: BacktestInput):
 
         # Calculate rolling Sharpe ratios
         window = 90
-        combined_df['portfolio_rolling_sharpe'] = combined_df['portfolio_returns'].rolling(window).apply(
-            lambda x: (x.mean() / x.std()) * np.sqrt(365) if x.std() != 0 else 0)
-        combined_df['market_rolling_sharpe'] = combined_df['returns'].rolling(window).apply(
-            lambda x: (x.mean() / x.std()) * np.sqrt(365) if x.std() != 0 else 0)
+        combined_df['portfolio_rolling_sharpe'] = rolling_sharpe_ratio(combined_df['portfolio_returns'], window)
+        combined_df['market_rolling_sharpe'] = rolling_sharpe_ratio(combined_df['returns'], window)
+
+        comb_end_time = time.time()
+        print(f"Combination (Time taken: {comb_end_time - comb_start_time:.4f} seconds)")
 
         # Prepare metrics and results
         result = metrics_table(combined_df, strategies_info)
-
-        # Convert result to JSON-friendly format
         result = json.loads(json.dumps(result, default=numpy_to_python))
 
         # Analyze trades using per-strategy DataFrames before resampling
@@ -256,7 +352,7 @@ async def backtest(input: BacktestInput):
         result = nan_to_null(result)
 
         total_end_time = time.time()
-        print(f"Backtest for strategy {strategy.name} completed in {total_end_time - total_start_time:.4f} seconds.")
+        print(f"Complete backtest completed in {total_end_time - total_start_time:.4f} seconds")
 
         return result
 
@@ -265,33 +361,6 @@ async def backtest(input: BacktestInput):
         print(traceback.format_exc())
         raise HTTPException(status_code=400, detail=str(e))
 
-
-
-
-
-def construct_rule_string(rules: List[RuleInput]) -> str:
-    try:
-        rule_strings = []
-        for index, r in enumerate(rules):
-            # Filter out empty parameter values
-            left_params = [v for v in r.leftParams.values() if v]
-            left = f"{r.leftIndicator}({','.join(left_params)})" if left_params else r.leftIndicator
-            
-            if r.useRightIndicator:
-                right_params = [v for v in r.rightParams.values() if v]
-                right = f"{r.rightIndicator}({','.join(right_params)})" if right_params else r.rightIndicator
-            else:
-                right = r.rightValue if r.rightValue is not None else ""
-            
-            rule_str = f"{left} {r.operator} {right}"
-            if index > 0:
-                rule_str = f"{r.logicalOperator} {rule_str}"
-            rule_strings.append(rule_str)
-        return " ".join(rule_strings)
-    except Exception as e:
-        print(f"Error in construct_rule_string: {str(e)}")
-        print(traceback.format_exc())
-        raise
 
 
 
