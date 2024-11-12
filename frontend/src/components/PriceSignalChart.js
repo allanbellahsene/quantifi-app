@@ -1,13 +1,21 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
-import { Box, Typography, Tabs, Tab } from '@mui/material';
+import { Box, Typography, Tabs, Tab, Paper } from '@mui/material';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+// Register chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const PriceSignalChart = ({ signals, assetName }) => {
   const [activeStrategy, setActiveStrategy] = useState('');
-
   const strategies = useMemo(() => Object.keys(signals || {}), [signals]);
 
   const processStrategyData = useCallback((signalsList, strategyName) => {
@@ -20,7 +28,7 @@ const PriceSignalChart = ({ signals, assetName }) => {
 
     let lastSignal = 0;
 
-    signalsList.forEach((item, index) => {
+    signalsList.forEach((item) => {
       const date = new Date(item.Date).toLocaleDateString();
       const price = item.Close;
       const signal = item[`${strategyName}_signal`];
@@ -28,6 +36,7 @@ const PriceSignalChart = ({ signals, assetName }) => {
       dates.push(date);
       prices.push(price);
 
+      // Enhanced signal visibility
       if (signal === 1 && lastSignal <= 0) {
         longEntries.push(price);
       } else {
@@ -61,41 +70,61 @@ const PriceSignalChart = ({ signals, assetName }) => {
         {
           label: 'Price',
           data: prices,
-          borderColor: 'rgb(75, 192, 192)',
+          borderColor: 'rgba(0, 0, 0, 0.8)', // Changed to black
+          backgroundColor: 'rgba(0, 0, 0, 0.05)', // Light black/gray fill
+          borderWidth: 2,
           tension: 0.1,
           pointRadius: 0,
+          fill: true,
+          z: 1,
         },
         {
           label: 'Long Entry',
           data: longEntries,
-          backgroundColor: 'green',
+          backgroundColor: 'rgba(46, 204, 113, 1)', // Keeping green for long entry
+          borderColor: 'rgba(46, 204, 113, 1)',
           pointStyle: 'triangle',
-          pointRadius: 6,
+          rotation: 0,
+          pointRadius: 12,
+          pointHoverRadius: 15,
           showLine: false,
+          z: 2,
         },
         {
           label: 'Long Exit',
           data: longExits,
-          backgroundColor: 'blue',
+          backgroundColor: 'rgba(231, 76, 60, 1)', // Changed to red
+          borderColor: 'rgba(231, 76, 60, 1)',
           pointStyle: 'triangle',
-          pointRadius: 6,
+          rotation: 180,
+          pointRadius: 12,
+          pointHoverRadius: 15,
           showLine: false,
+          z: 2,
         },
         {
           label: 'Short Entry',
           data: shortEntries,
-          backgroundColor: 'red',
+          backgroundColor: 'rgba(243, 156, 18, 1)', // Changed to orange
+          borderColor: 'rgba(243, 156, 18, 1)',
           pointStyle: 'triangle',
-          pointRadius: 6,
+          rotation: 180,
+          pointRadius: 12,
+          pointHoverRadius: 15,
           showLine: false,
+          z: 2,
         },
         {
           label: 'Short Exit',
           data: shortExits,
-          backgroundColor: 'orange',
+          backgroundColor: 'rgba(241, 196, 15, 1)', // Changed to yellow
+          borderColor: 'rgba(241, 196, 15, 1)',
           pointStyle: 'triangle',
-          pointRadius: 6,
+          rotation: 0,
+          pointRadius: 12,
+          pointHoverRadius: 15,
           showLine: false,
+          z: 2,
         },
       ],
     };
@@ -114,18 +143,76 @@ const PriceSignalChart = ({ signals, assetName }) => {
 
   const options = useMemo(() => ({
     responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: 'index',
+      intersect: false,
+    },
     plugins: {
-      legend: { position: 'top' },
+      legend: {
+        position: 'top',
+        labels: {
+          usePointStyle: true,
+          padding: 20,
+          font: {
+            size: 12,
+            weight: 'bold'
+          }
+        }
+      },
       title: {
         display: true,
         text: `Price and Signals - ${assetName}`,
+        font: {
+          size: 16,
+          weight: 'bold'
+        },
+        padding: 20
       },
+      tooltip: {
+        mode: 'index',
+        intersect: false,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleFont: {
+          size: 14,
+          weight: 'bold'
+        },
+        bodyFont: {
+          size: 13
+        },
+        padding: 12,
+        cornerRadius: 8,
+      }
     },
     scales: {
       x: {
-        ticks: { maxTicksLimit: 10 },
+        grid: {
+          display: false
+        },
+        ticks: {
+          maxTicksLimit: 10,
+          font: {
+            size: 11
+          }
+        }
       },
+      y: {
+        grid: {
+          color: 'rgba(0, 0, 0, 0.05)'
+        },
+        ticks: {
+          font: {
+            size: 11
+          }
+        }
+      }
     },
+    animations: {
+      tension: {
+        duration: 1000,
+        easing: 'linear'
+      }
+    }
   }), [assetName]);
 
   const handleTabChange = useCallback((event, newValue) => {
@@ -137,25 +224,39 @@ const PriceSignalChart = ({ signals, assetName }) => {
   }
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <Paper elevation={2} sx={{ p: 2, backgroundColor: '#ffffff' }}>
       <Tabs
         value={activeStrategy}
         onChange={handleTabChange}
         aria-label="strategy tabs"
-        sx={{ marginBottom: 2 }}
+        sx={{
+          mb: 2,
+          '& .MuiTab-root': {
+            fontWeight: 'bold',
+            fontSize: '0.9rem',
+          },
+          '& .Mui-selected': {
+            color: 'primary.main',
+          }
+        }}
       >
         {strategies.map((strategy) => (
           <Tab label={strategy} value={strategy} key={strategy} />
         ))}
       </Tabs>
-      <Box sx={{ height: 500 }}>
+      <Box sx={{ 
+        height: 600,
+        p: 2,
+        backgroundColor: '#ffffff',
+        borderRadius: 1
+      }}>
         {chartData ? (
           <Line options={options} data={chartData} />
         ) : (
           <Typography variant="h6">Loading chart data...</Typography>
         )}
       </Box>
-    </Box>
+    </Paper>
   );
 };
 

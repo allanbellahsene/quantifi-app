@@ -158,7 +158,7 @@ def calculate_metrics(
     avg_drawdown = drawdowns.mean()
 
     # Positive and negative returns
-    positive_returns = returns[returns >= 0]
+    positive_returns = returns[returns > 0]
     negative_returns = returns[returns < 0]
 
     # Win rate and loss rate

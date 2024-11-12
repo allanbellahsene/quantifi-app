@@ -16,68 +16,107 @@ import {
 } from '@mui/material';
 import { Delete as DeleteIcon } from '@mui/icons-material';
 
-const IndicatorSection = ({ side, indicator, updateRule, updateIndicatorParam, strategyIndex, ruleIndex, ruleType, indicators }) => (
-  <Paper elevation={0} sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
-    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-      {side} Side
-    </Typography>
-    
-    <RadioGroup
-      row
-      value={indicator?.type || 'simple'}
-      onChange={(e) =>
-        updateRule(
-          strategyIndex,
-          ruleIndex,
-          ruleType,
-          `${side.toLowerCase()}IndicatorType`,
-          e.target.value
-        )
-      }
-    >
-      <FormControlLabel value="simple" control={<Radio size="small" />} label="Simple" />
-      <FormControlLabel value="composite" control={<Radio size="small" />} label="Composite" />
-    </RadioGroup>
+const IndicatorSection = ({
+  side,
+  indicator,
+  updateRule,
+  updateIndicatorParam,
+  strategyIndex,
+  ruleIndex,
+  ruleType,
+  indicators,
+  onIndicatorSelect
+}) => {
+  const handleTypeChange = (type) => {
+    updateRule(
+      strategyIndex,
+      ruleIndex,
+      ruleType,
+      `${side}IndicatorType`,
+      type
+    );
 
-    {indicator?.type === 'simple' ? (
-      <>
-        <FormControl fullWidth variant="outlined" size="small" sx={{ mt: 1 }}>
-          <InputLabel>Indicator</InputLabel>
-          <Select
-            label="Indicator"
-            value={indicator?.name || ''}
-            onChange={(e) => {
-              updateRule(
-                strategyIndex,
-                ruleIndex,
-                ruleType,
-                `${side.toLowerCase()}IndicatorName`,
-                e.target.value
-              );
-              // Set default series parameter if needed
-              const selectedIndicator = indicators.find(i => i.name === e.target.value);
-              if (selectedIndicator?.params.includes('series')) {
-                updateIndicatorParam(
+    // Reset appropriate fields based on type
+    if (type === 'simple') {
+      updateRule(
+        strategyIndex,
+        ruleIndex,
+        ruleType,
+        `${side}IndicatorExpression`,
+        ''
+      );
+    } else {
+      updateRule(
+        strategyIndex,
+        ruleIndex,
+        ruleType,
+        `${side}IndicatorName`,
+        ''
+      );
+    }
+
+    // Always ensure useRightIndicator is true when on right side
+    if (side === 'right') {
+      updateRule(
+        strategyIndex,
+        ruleIndex,
+        ruleType,
+        'useRightIndicator',
+        true
+      );
+    }
+  };
+
+  return (
+    <Paper elevation={0} sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+        {side.charAt(0).toUpperCase() + side.slice(1)} Side
+      </Typography>
+      
+      {/* Indicator Type Toggle */}
+      <RadioGroup
+        row
+        value={indicator?.type || 'simple'}
+        onChange={(e) => handleTypeChange(e.target.value)}
+      >
+        <FormControlLabel 
+          value="simple" 
+          control={<Radio size="small" />} 
+          label="Simple" 
+        />
+        <FormControlLabel 
+          value="composite" 
+          control={<Radio size="small" />} 
+          label="Composite" 
+        />
+      </RadioGroup>
+
+      {indicator?.type === 'simple' ? (
+        <>
+          <FormControl fullWidth variant="outlined" size="small" sx={{ mt: 1 }}>
+            <InputLabel>Indicator</InputLabel>
+            <Select
+              label="Indicator"
+              value={indicator?.name || ''}
+              onChange={onIndicatorSelect || ((e) =>
+                updateRule(
                   strategyIndex,
                   ruleIndex,
                   ruleType,
-                  side.toLowerCase(),
-                  'series',
-                  'Close'
-                );
-              }
-            }}
-          >
-            {indicators.map((ind) => (
-              <MenuItem key={ind.name} value={ind.name}>
-                {ind.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+                  `${side}IndicatorName`,
+                  e.target.value
+                )
+              )}
+            >
+              {indicators.map((ind) => (
+                <MenuItem key={ind.name} value={ind.name}>
+                  {ind.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
-        {indicator?.name &&
-          indicators
+          {indicator?.name && indicators
             .find((i) => i.name === indicator.name)
             ?.params.map((param) => (
               <TextField
@@ -90,7 +129,7 @@ const IndicatorSection = ({ side, indicator, updateRule, updateIndicatorParam, s
                     strategyIndex,
                     ruleIndex,
                     ruleType,
-                    side.toLowerCase(),
+                    side,
                     param,
                     e.target.value
                   )
@@ -100,30 +139,33 @@ const IndicatorSection = ({ side, indicator, updateRule, updateIndicatorParam, s
                 sx={{ mt: 1 }}
               />
             ))}
-      </>
-    ) : (
-      <TextField
-        label="Composite Expression"
-        size="small"
-        placeholder="e.g., max(SMA(Close,20), EMA(Close,50))"
-        value={indicator?.expression || ''}
-        onChange={(e) =>
-          updateRule(
-            strategyIndex,
-            ruleIndex,
-            ruleType,
-            `${side.toLowerCase()}IndicatorExpression`,
-            e.target.value
-          )
-        }
-        variant="outlined"
-        fullWidth
-        sx={{ mt: 1 }}
-        helperText="Use functions: max, min, mean, add, subtract, multiply, divide"
-      />
-    )}
-  </Paper>
-);
+        </>
+      ) : (
+        <TextField
+          label="Composite Expression"
+          size="small"
+          placeholder="e.g., max(SMA(Close,20), EMA(Close,50))"
+          value={indicator?.expression || ''}
+          onChange={(e) =>
+            updateRule(
+              strategyIndex,
+              ruleIndex,
+              ruleType,
+              `${side}IndicatorExpression`,
+              e.target.value
+            )
+          }
+          variant="outlined"
+          fullWidth
+          sx={{ mt: 1 }}
+          helperText="Use functions: max, min, mean, add, subtract, multiply, divide"
+          multiline
+          rows={2}
+        />
+      )}
+    </Paper>
+  );
+};
 
 const RuleComponent = ({
   rule,
@@ -135,7 +177,37 @@ const RuleComponent = ({
   removeRule,
   indicators,
 }) => {
-  if (!rule) return null;
+  // Handler for when right indicator is updated
+  const handleRightIndicatorUpdate = (e) => {
+    const indicatorName = e.target.value;
+    updateRule(
+      strategyIndex,
+      ruleIndex,
+      ruleType,
+      'rightIndicatorName',
+      indicatorName
+    );
+    
+    updateRule(
+      strategyIndex,
+      ruleIndex,
+      ruleType,
+      'useRightIndicator',
+      true
+    );
+
+    const selectedIndicator = indicators.find(i => i.name === indicatorName);
+    if (selectedIndicator?.params.includes('series')) {
+      updateIndicatorParam(
+        strategyIndex,
+        ruleIndex,
+        ruleType,
+        'right',
+        'series',
+        'Close'
+      );
+    }
+  };
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -165,14 +237,13 @@ const RuleComponent = ({
           </Grid>
         )}
 
-        {/* Rule Components */}
         <Grid item xs={12}>
           <Paper elevation={1} sx={{ p: 2, backgroundColor: 'background.paper' }}>
             <Grid container spacing={2} alignItems="flex-start">
-              {/* Left Indicator */}
+              {/* Left Side */}
               <Grid item xs={12} md={5}>
                 <IndicatorSection
-                  side="Left"
+                  side="left"
                   indicator={rule.leftIndicator}
                   updateRule={updateRule}
                   updateIndicatorParam={updateIndicatorParam}
@@ -211,10 +282,10 @@ const RuleComponent = ({
                 </Box>
               </Grid>
 
-              {/* Right Indicator */}
+              {/* Right Side */}
               <Grid item xs={12} md={5}>
                 <IndicatorSection
-                  side="Right"
+                  side="right"
                   indicator={rule.rightIndicator}
                   updateRule={updateRule}
                   updateIndicatorParam={updateIndicatorParam}
@@ -222,6 +293,7 @@ const RuleComponent = ({
                   ruleIndex={ruleIndex}
                   ruleType={ruleType}
                   indicators={indicators}
+                  onIndicatorSelect={handleRightIndicatorUpdate}
                 />
               </Grid>
             </Grid>
@@ -244,5 +316,3 @@ const RuleComponent = ({
 };
 
 export default RuleComponent;
-
-

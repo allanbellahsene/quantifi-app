@@ -9,7 +9,12 @@ import { styled } from '@mui/material/styles';
 import BacktestingParameters from './BacktestingParameters';
 import StrategyBuilder from './StrategyBuilder';
 import TradesTable from './TradesTable';
+import TradeReturnsHistogram from './TradesHistogram';
 import ChartSystem from './ChartSystem';
+
+const FEATURE_FLAGS = {
+  SHOW_TRADE_ANALYSIS: false,  // Set to false to disable trade analysis
+};
 
 
 // Create a PrimaryButton component
@@ -427,19 +432,25 @@ const QuantiFiBacktestingLab = () => {
         removeRule={removeRule}
         addRule={addRule}
         toggleStrategyCollapse={toggleStrategyCollapse}
-        duplicateStrategy={duplicateStrategy} // Pass the function as a prop
+        duplicateStrategy={duplicateStrategy}
         dataSource={dataSource}
       />
 
-
-      <PrimaryButton onClick={runBacktest} disabled={isLoading} sx={{ mt: 4 }}>
+      <PrimaryButton 
+        onClick={runBacktest} 
+        disabled={isLoading} 
+        sx={{ mt: 4 }}
+      >
         {isLoading ? 'Running Backtest...' : 'Run Backtest'}
       </PrimaryButton>
 
       {error && (
-        <Typography color="error" className="mt-4">{error}</Typography>
+        <Typography color="error" className="mt-4">
+          {error}
+        </Typography>
       )}
 
+      {/* Results Section */}
       {backtestResults && (
         <div>
           <ChartSystem
@@ -452,14 +463,19 @@ const QuantiFiBacktestingLab = () => {
             startDate={startDate}
             endDate={endDate}
           />
-        {backtestResults.metrics && (
+          
+          {backtestResults.metrics && (
             <MetricsTable metrics={backtestResults.metrics} />
-            )}
-        {backtestResults.trades && (
-            <TradesTable trades={backtestResults.trades} />
-            )}
-            </div>
-        )}
+          )}
+          
+          {backtestResults?.trades && backtestResults.trades.length > 0 && (
+            <>
+              <TradesTable trades={backtestResults.trades} />
+              <TradeReturnsHistogram trades={backtestResults.trades} />
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
