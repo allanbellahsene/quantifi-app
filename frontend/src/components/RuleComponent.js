@@ -15,6 +15,9 @@ import {
   Paper,
 } from '@mui/material';
 import { Delete as DeleteIcon } from '@mui/icons-material';
+import FunctionBuilder from './FunctionBuilder';
+
+// In RuleComponent.js, modify the IndicatorSection component:
 
 const IndicatorSection = ({
   side,
@@ -141,27 +144,21 @@ const IndicatorSection = ({
             ))}
         </>
       ) : (
-        <TextField
-          label="Composite Expression"
-          size="small"
-          placeholder="e.g., max(SMA(Close,20), EMA(Close,50))"
-          value={indicator?.expression || ''}
-          onChange={(e) =>
-            updateRule(
-              strategyIndex,
-              ruleIndex,
-              ruleType,
-              `${side}IndicatorExpression`,
-              e.target.value
-            )
-          }
-          variant="outlined"
-          fullWidth
-          sx={{ mt: 1 }}
-          helperText="Use functions: max, min, mean, add, subtract, multiply, divide"
-          multiline
-          rows={2}
-        />
+        <Box sx={{ mt: 1 }}>
+          <FunctionBuilder
+            initialExpression={indicator?.expression || ''}
+            onChange={(expression) =>
+              updateRule(
+                strategyIndex,
+                ruleIndex,
+                ruleType,
+                `${side}IndicatorExpression`,
+                expression
+              )
+            }
+            availableIndicators={indicators}
+          />
+        </Box>
       )}
     </Paper>
   );
