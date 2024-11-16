@@ -9,7 +9,6 @@ import logging
 import json
 
 logger = logging.getLogger(__name__)
-
 class StrategyService:
     def __init__(self, strategies: List[StrategyInput], fees: float, slippage: float):
         self.strategies = strategies
@@ -48,6 +47,36 @@ Exit Rules: {[{
     } if rule.rightIndicator else None,
     'rightValue': rule.rightValue
 } for rule in strategy.exitRules]}
+Entry Regime Rules: {[{
+    'leftIndicator': {
+        'type': rule.leftIndicator.type,
+        'name': rule.leftIndicator.name,
+        'params': rule.leftIndicator.params if hasattr(rule.leftIndicator, 'params') else None
+    },
+    'operator': rule.operator,
+    'useRightIndicator': rule.useRightIndicator,
+    'rightIndicator': {
+        'type': rule.rightIndicator.type if rule.rightIndicator else None,
+        'name': rule.rightIndicator.name if rule.rightIndicator else None,
+        'params': rule.rightIndicator.params if rule.rightIndicator and hasattr(rule.rightIndicator, 'params') else None
+    } if rule.rightIndicator else None,
+    'rightValue': rule.rightValue
+} for rule in (strategy.entryRegimeRules or [])]}
+Exit Regime Rules: {[{
+    'leftIndicator': {
+        'type': rule.leftIndicator.type,
+        'name': rule.leftIndicator.name,
+        'params': rule.leftIndicator.params if hasattr(rule.leftIndicator, 'params') else None
+    },
+    'operator': rule.operator,
+    'useRightIndicator': rule.useRightIndicator,
+    'rightIndicator': {
+        'type': rule.rightIndicator.type if rule.rightIndicator else None,
+        'name': rule.rightIndicator.name if rule.rightIndicator else None,
+        'params': rule.rightIndicator.params if rule.rightIndicator and hasattr(rule.rightIndicator, 'params') else None
+    } if rule.rightIndicator else None,
+    'rightValue': rule.rightValue
+} for rule in (strategy.exitRegimeRules or [])]}
 ============================
             """)
         self.fees = fees
@@ -67,7 +96,7 @@ Exit Rules: {[{
                 if df is None:
                     raise ValueError(f"No data found for frequency: {strategy.frequency}")
                 
-                results = await self._process_single_strategy(strategy, df)
+                results = await self.process_single_strategy(strategy, df, data_dict)
                 strategies_results.append(results[0])
                 strategies_info.append(results[1])
                 strategies_df_results.append(results[2])
@@ -77,52 +106,48 @@ Exit Rules: {[{
 
         return strategies_results, strategies_info, strategies_df_results
 
-    async def _process_single_strategy(self, strategy: StrategyInput, df: pd.DataFrame) -> Tuple:
-        """
-        Processes a single strategy and returns its results.
-        """
+    async def process_single_strategy(self, strategy: StrategyInput, df: pd.DataFrame, data_dict: Dict[str, pd.DataFrame]) -> Tuple:
         try:
-            logger.info(f"Processing strategy: {strategy.name}")
-            
-            # Log strategy data for debugging
-            logger.debug(f"Strategy data: {json.dumps({
-                'name': strategy.name,
-                'entryRules': [{
-                    'leftIndicator': vars(rule.leftIndicator),
-                    'operator': rule.operator,
-                    'useRightIndicator': rule.useRightIndicator,
-                    'rightIndicator': vars(rule.rightIndicator) if rule.rightIndicator else None,
-                    'rightValue': rule.rightValue
-                } for rule in strategy.entryRules],
-                'exitRules': [{
-                    'leftIndicator': vars(rule.leftIndicator),
-                    'operator': rule.operator,
-                    'useRightIndicator': rule.useRightIndicator,
-                    'rightIndicator': vars(rule.rightIndicator) if rule.rightIndicator else None,
-                    'rightValue': rule.rightValue
-                } for rule in strategy.exitRules]
-            }, indent=2, default=str)}")
-            
-            # Validate rules
-            self._validate_strategy_rules(strategy)
+            # Initialize strategy parameters first
+            position_params = self._initialize_position_parameters(strategy)
             
             # Construct rule strings
             entry_rules = construct_rule_string(strategy.entryRules)
             exit_rules = construct_rule_string(strategy.exitRules)
-            
-            logger.debug(f"Constructed entry rules: {entry_rules}")
-            logger.debug(f"Constructed exit rules: {exit_rules}")
-            
-            # Initialize strategy parameters
-            position_params = self._initialize_position_parameters(strategy)
+            entry_regime_rules = construct_rule_string(strategy.entryRegimeRules) if strategy.entryRegimeRules else None
+            exit_regime_rules = construct_rule_string(strategy.exitRegimeRules) if strategy.exitRegimeRules else None
             
             # Create strategy instance
-            strategy_instance = self._create_strategy_instance(
-                strategy, entry_rules, exit_rules, position_params
+            strategy_instance = Strategy(
+                name=strategy.name,
+                entry_rules=entry_rules,
+                exit_rules=exit_rules,
+                entry_regime_rules=entry_regime_rules,
+                exit_regime_rules=exit_regime_rules,
+                position_type=strategy.positionType,
+                active=strategy.active,
+                regime_entry_action=strategy.regimeEntryAction,
+                regime_exit_action=strategy.regimeExitAction,
+                regime_asset=strategy.regimeAsset,
+                position_size_method=strategy.position_size_method,
+                fixed_position_size=position_params['fixed_position_size'],
+                volatility_target=position_params['volatility_target'],
+                volatility_lookback=strategy.volatility_lookback,
+                volatility_buffer=strategy.volatility_buffer,
+                max_leverage=strategy.max_leverage,
+                frequency=strategy.frequency
             )
             
+            # Get regime data if needed
+            regime_df = None
+            if strategy.regimeAsset and (strategy.entryRegimeRules or strategy.exitRegimeRules):
+                regime_key = f"regime_{strategy.regimeAsset}"
+                regime_df = data_dict.get(regime_key)
+                if regime_df is None:
+                    raise ValueError(f"No data found for regime asset: {strategy.regimeAsset}")
+            
             # Run backtest
-            df_result = run_backtest(df.copy(), strategy_instance, self.fees, self.slippage)
+            df_result = run_backtest(df.copy(), strategy_instance, self.fees, self.slippage, regime_df)
             
             return df_result, strategy_instance, df_result.copy()
             

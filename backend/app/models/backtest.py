@@ -1,6 +1,5 @@
-# app/models/backtest.py
 from pydantic import BaseModel, Field, validator
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Literal
 
 class IndicatorInput(BaseModel):
     type: str  # 'simple' or 'composite'
@@ -35,8 +34,12 @@ class StrategyInput(BaseModel):
     positionType: str
     entryRules: List[RuleInput]
     exitRules: List[RuleInput]
+    entryRegimeRules: Optional[List[RuleInput]] = None
+    exitRegimeRules: Optional[List[RuleInput]] = None
+    regimeEntryAction: Optional[Literal['long', 'short']] = None
+    regimeExitAction: Optional[Literal['long', 'short']] = None
+    regimeAsset: Optional[str] = None
     active: bool = True
-    regime_filter: Optional[str] = None
     position_size_method: str = 'fixed'
     fixed_position_size: Optional[float] = None    
     volatility_target: Optional[float] = None       
@@ -44,6 +47,18 @@ class StrategyInput(BaseModel):
     volatility_buffer: Optional[float] = None       
     max_leverage: float = 1.0
     frequency: str
+
+    @validator('regimeEntryAction')
+    def validate_entry_regime(cls, v, values):
+        if bool(values.get('entryRegimeRules')) != bool(v):
+            raise ValueError('Both entryRegimeRules and regimeEntryAction must be provided together')
+        return v
+
+    @validator('regimeExitAction')
+    def validate_exit_regime(cls, v, values):
+        if bool(values.get('exitRegimeRules')) != bool(v):
+            raise ValueError('Both exitRegimeRules and regimeExitAction must be provided together')
+        return v
 
     @validator('fixed_position_size', always=True)
     def validate_fixed_position_size(cls, v, values):

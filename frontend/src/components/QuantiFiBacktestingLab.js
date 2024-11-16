@@ -83,7 +83,7 @@ const QuantiFiBacktestingLab = () => {
   };
   
   const addStrategy = () => {
-    const defaultFrequency = dataSource === 'Yahoo Finance' ? 'Daily' : '1h'; // You can choose a default
+    const defaultFrequency = dataSource === 'Yahoo Finance' ? 'Daily' : '1h';
     setStrategies([...strategies, {
       name: `Strategy ${strategies.length + 1}`,
       allocation: 100,
@@ -91,16 +91,19 @@ const QuantiFiBacktestingLab = () => {
       entryRules: [],
       exitRules: [],
       active: true,
-      position_size: 1,
-      regime_filter: null,
-      position_size_method: 'fixed', // New parameter
-      fixed_position_size: 1.0,      // New parameter
-      volatility_target: null,       // New parameter
-      volatility_lookback: 30,       // New parameter
-      volatility_buffer: null,       // New parameter
-      max_leverage: 1.0, 
+      entryRegimeRules: [],  // Separate rules for entry regime
+      exitRegimeRules: [],   // Separate rules for exit regime
+      regimeEntryAction: null,
+      regimeExitAction: null,
+      regimeAsset: '',
+      position_size_method: 'fixed',
+      fixed_position_size: 1.0,
+      volatility_target: null,
+      volatility_lookback: 30,
+      volatility_buffer: null,
+      max_leverage: 1.0,
       frequency: defaultFrequency,
-      collapsed: false, // New property to track collapse state
+      collapsed: false,
     }]);
   };
 
@@ -336,9 +339,14 @@ const QuantiFiBacktestingLab = () => {
         const strategyData = {
           name: strategy.name,
           allocation: strategy.allocation,
+          positionType: strategy.positionType,
           entryRules: processRules(strategy.entryRules),
           exitRules: processRules(strategy.exitRules),
-          positionType: strategy.positionType,
+          entryRegimeRules: processRules(strategy.entryRegimeRules),  // Make sure these are included
+          exitRegimeRules: processRules(strategy.exitRegimeRules),    // Make sure these are included
+          regimeEntryAction: strategy.regimeEntryAction,
+          regimeExitAction: strategy.regimeExitAction,
+          regimeAsset: strategy.regimeAsset,
           active: strategy.active,
           position_size_method: strategy.position_size_method,
           max_leverage: strategy.max_leverage,

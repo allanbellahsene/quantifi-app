@@ -2,14 +2,14 @@
 
 import pandas as pd
 import numpy as np
-from typing import List
+from typing import List, Optional
 from app.services.strategy_module.strategy import Strategy
 from app.services.strategy_module.utils import add_indicators
 from app.services.backtest.metrics import rolling_sharpe_ratio
 import time
 
 
-def run_backtest(df: pd.DataFrame, strategy: Strategy, fees: float, slippage: float) -> pd.DataFrame:
+def run_backtest(df: pd.DataFrame, strategy: Strategy, fees: float, slippage: float, regime_df: Optional[pd.DataFrame] = None) -> pd.DataFrame:
     """Run a backtest for a single strategy"""
     # Convert fees and slippage from percentages to decimals
     fees = fees / 100
@@ -19,9 +19,11 @@ def run_backtest(df: pd.DataFrame, strategy: Strategy, fees: float, slippage: fl
     # Start timing the total backtest
     total_start_time = time.time()
 
-    # Add indicators to the DataFrame
+    # Add indicators to both main and regime DataFrames
     indicators_start_time = time.time()
     df = add_indicators(df, [strategy])
+    if regime_df is not None:
+        regime_df = add_indicators(regime_df, [strategy])
     print("Indicators added to DataFrame")
     indicators_end_time = time.time()
     print(f"Indicators added to DataFrame (Time taken: {indicators_end_time - indicators_start_time:.4f} seconds)")
@@ -31,7 +33,7 @@ def run_backtest(df: pd.DataFrame, strategy: Strategy, fees: float, slippage: fl
     # Generate signals and calculate returns for the strategy
     print(f"Generating signals for strategy: {strategy.name}")
     signals_start_time = time.time()
-    df[f'{strategy.name}_signal'] = strategy.generate_signals(df)
+    df[f'{strategy.name}_signal'] = strategy.generate_signals(df, regime_df)
     signals_end_time = time.time()
     print(f"Signals generated (Time taken: {signals_end_time - signals_start_time:.4f} seconds)")
     # Calculate position sizes

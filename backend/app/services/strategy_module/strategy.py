@@ -8,39 +8,46 @@ from app.services.strategy_module.expressions import parse_rule, CompositeRule
 from app.services.strategy_module.signals import generate_signals
 
 @dataclass
+@dataclass
 class Strategy:
     name: str
     entry_rules: str
     exit_rules: str
     position_type: Literal['long', 'short']
+    regime_asset: Optional[str] = None
+    entry_regime_rules: Optional[str] = None
+    exit_regime_rules: Optional[str] = None
+    regime_entry_action: Optional[Literal['long', 'short']] = None
+    regime_exit_action: Optional[Literal['long', 'short']] = None
     active: bool = True
-    regime_filter: Optional[str] = None
     position_size_method: Literal['fixed', 'volatility_target'] = 'fixed'
     fixed_position_size: Optional[float] = None
     volatility_target: Optional[float] = None
     volatility_lookback: Optional[int] = 30
-    volatility_buffer: Optional[float] = None  # Buffer percentage for volatility adjustments
+    volatility_buffer: Optional[float] = None
     max_leverage: float = 1.0
     frequency: str = 'Daily'
 
     def __post_init__(self):
-        print(f"Initializing strategy: {self.name}")
-        try:
-            self.entry_rules: CompositeRule = parse_rule(self.entry_rules)
-            self.exit_rules: CompositeRule = parse_rule(self.exit_rules)
-            self.position_type_value: int = 1 if self.position_type == 'long' else -1
-            self.regime_filter: Optional[CompositeRule] = parse_rule(self.regime_filter) if self.regime_filter else None
-            print(f"Strategy {self.name} initialized successfully")
-        except ValueError as e:
-            print(f"Error initializing strategy {self.name}: {str(e)}")
-            raise
+        self.entry_rules: CompositeRule = parse_rule(self.entry_rules)
+        self.exit_rules: CompositeRule = parse_rule(self.exit_rules)
+        self.entry_regime_rules: Optional[CompositeRule] = parse_rule(self.entry_regime_rules) if self.entry_regime_rules else None
+        self.exit_regime_rules: Optional[CompositeRule] = parse_rule(self.exit_regime_rules) if self.exit_regime_rules else None
+        self.position_type_value: int = 1 if self.position_type == 'long' else -1
 
-    def generate_signals(self, df: pd.DataFrame) -> pd.Series:
+    def generate_signals(self, df: pd.DataFrame, regime_df: Optional[pd.DataFrame] = None) -> pd.Series:
         """Generate trading signals for the strategy."""
-        signals = generate_signals(df, self.entry_rules, self.exit_rules, self.position_type_value)
-        if self.regime_filter:
-            regime = self.regime_filter.evaluate(df)
-            signals = signals * regime
+        signals = generate_signals(
+            df=df,
+            entry_signal=self.entry_rules,
+            exit_signal=self.exit_rules,
+            position_type=self.position_type_value,
+            entry_regime=self.entry_regime_rules if self.regime_entry_action else None,
+            exit_regime=self.exit_regime_rules if self.regime_exit_action else None,
+            regime_df=regime_df,
+            regime_entry_action=self.regime_entry_action,
+            regime_exit_action=self.regime_exit_action
+        )
         return signals
 
     def calculate_position_sizes(self, df: pd.DataFrame) -> pd.Series:

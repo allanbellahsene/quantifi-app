@@ -23,11 +23,13 @@ class DataService:
     async def fetch_data(symbol: str, start: str, end: str, data_source: str, 
                         strategies: list[StrategyInput]) -> Dict[str, pd.DataFrame]:
         """
-        Fetches data for all required frequencies based on strategies.
+        Fetches data for all required frequencies and regime filter assets.
         """
         frequencies = set(s.frequency for s in strategies)
+        regime_assets = {s.regimeAsset for s in strategies if s.regimeAsset}
         data_dict = {}
 
+        # Fetch main symbol data for each frequency
         for freq in frequencies:
             try:
                 df = await DataService._fetch_single_frequency(
@@ -39,14 +41,25 @@ class DataService:
                 logger.error(f"Error fetching data for frequency {freq}: {str(e)}")
                 raise
 
+        # Fetch regime filter asset data
+        for regime_asset in regime_assets:
+            if regime_asset and regime_asset != symbol:
+                try:
+                    regime_df = await DataService._fetch_single_frequency(
+                        regime_asset, start, end, data_source, 'Daily'  # Always use daily for regime filter
+                    )
+                    data_dict[f"regime_{regime_asset}"] = regime_df
+                    logger.info(f"Regime filter data fetched for {regime_asset}")
+                except Exception as e:
+                    logger.error(f"Error fetching regime filter data for {regime_asset}: {str(e)}")
+                    raise
+
         return data_dict
 
     @staticmethod
     async def _fetch_single_frequency(symbol: str, start: str, end: str, 
                                     data_source: str, freq: str) -> pd.DataFrame:
-        """
-        Fetches data for a single frequency from the specified data source.
-        """
+        """Fetches data for a single frequency from the specified data source."""
         if data_source == 'Yahoo Finance':
             if freq != 'Daily':
                 raise ValueError(f'Yahoo Finance only supports Daily frequency, but {freq} was requested.')

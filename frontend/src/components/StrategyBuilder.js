@@ -27,6 +27,8 @@ import {
   ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material';
 import RuleComponent from './RuleComponent';
+import RegimeFilter from './RegimeFilter';
+
 
 const AVAILABLE_FREQUENCIES = {
   'Yahoo Finance': ['Daily'],
@@ -302,7 +304,16 @@ const StrategyBuilder = ({
                 </Grid>
               </Box>
             )}
-
+            <RegimeFilter
+                strategy={strategy}
+                strategyIndex={strategyIndex}
+                updateStrategy={updateStrategy}
+                updateRule={updateRule}
+                updateIndicatorParam={updateIndicatorParam}
+                removeRule={removeRule}
+                addRule={addRule}
+                INDICATORS={INDICATORS}
+              />
             {/* Entry Rules */}
             <Box sx={{ mt: 4 }}>
               <Typography variant="subtitle1" gutterBottom>

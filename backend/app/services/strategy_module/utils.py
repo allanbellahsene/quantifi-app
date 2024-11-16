@@ -21,10 +21,15 @@ def add_indicators(df: pd.DataFrame, strategies: List[Strategy]) -> pd.DataFrame
                 collect_indicators(rule.next_rule)
 
     for strategy in strategies:
+        # Main rules
         collect_indicators(strategy.entry_rules)
         collect_indicators(strategy.exit_rules)
-        if strategy.regime_filter:
-            collect_indicators(strategy.regime_filter)
+        
+        # Regime rules
+        if strategy.entry_regime_rules:
+            collect_indicators(strategy.entry_regime_rules)
+        if strategy.exit_regime_rules:
+            collect_indicators(strategy.exit_regime_rules)
 
     for indicator in all_indicators:
         if indicator.name in INDICATORS:

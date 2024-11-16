@@ -106,6 +106,7 @@ def download_yf_data(symbol: str, start: str, end: str) -> pd.DataFrame:
     df.columns = df.columns.get_level_values(0)
     return df
 
+
 if __name__ == "__main__":
     df_yf = download_yf_data(symbol='BTC-USD', start='2020-01-01', end='2024-01-01')
     df_binance = fetch_binance_data(symbol='BTCUSDT', start_date='2020-01-01', end_date='2024-01-01',
