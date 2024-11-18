@@ -8,7 +8,6 @@ from app.services.strategy_module.expressions import parse_rule, CompositeRule
 from app.services.strategy_module.signals import generate_signals
 
 @dataclass
-@dataclass
 class Strategy:
     name: str
     entry_rules: str

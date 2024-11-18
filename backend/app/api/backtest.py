@@ -127,6 +127,8 @@ async def _prepare_final_results(combined_df, strategies_info, strategies_df_res
         # Convert NaN values to None for JSON compatibility
         result = nan_to_null(result)
 
+        #logging.info(f'RESULTS: {result}')
+
         return result
 
     except Exception as e:

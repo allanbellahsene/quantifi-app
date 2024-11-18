@@ -1,4 +1,4 @@
-#app.services.baktest.run_backtest.py
+#app.services.backtest.run_backtest.py
 
 import pandas as pd
 import numpy as np
