@@ -2,7 +2,7 @@
 from typing import Dict
 import pandas as pd
 import logging
-from app.utils.data_fetcher import download_yf_data, fetch_binance_data
+from app.services.data.data_fetcher import download_yf_data, fetch_binance_data
 from app.models.backtest import StrategyInput
 
 logger = logging.getLogger(__name__)
