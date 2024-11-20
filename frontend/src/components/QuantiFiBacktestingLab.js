@@ -10,6 +10,7 @@ import BacktestingParameters from './BacktestingParameters';
 import StrategyBuilder from './StrategyBuilder';
 import TradesTable from './TradesTable';
 import ChartSystem from './ChartSystem';
+import TradeReturnsHistogram from './TradesHistogram';
 
 
 // Create a PrimaryButton component
@@ -456,10 +457,13 @@ const QuantiFiBacktestingLab = () => {
         {backtestResults.metrics && (
             <MetricsTable metrics={backtestResults.metrics} />
             )}
-        {backtestResults.trades && (
-            <TradesTable trades={backtestResults.trades} />
-            )}
-            </div>
+        {backtestResults?.trades && backtestResults.trades.length > 0 && (
+            <>
+              <TradesTable trades={backtestResults.trades} />
+              <TradeReturnsHistogram trades={backtestResults.trades} />
+            </>
+          )}
+        </div>
         )}
     </div>
   );
