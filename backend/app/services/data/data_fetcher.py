@@ -108,21 +108,21 @@ def download_yf_data(symbol: str, start: str, end: str) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    df_yf = download_yf_data(symbol='BTC-USD', start='2020-01-01', end='2024-01-01')
-    df_binance = fetch_binance_data(symbol='BTCUSDT', start_date='2020-01-01', end_date='2024-01-01',
+    from app.services.strategy_module.indicators import average_move_from_open
+    intra_df = fetch_binance_data(symbol='BTCUSDT', start_date='2020-01-01', end_date='2020-03-01',
     interval='30m')
+    daily_df = fetch_binance_data(symbol='BTCUSDT', start_date='2020-01-01', end_date='2020-03-01',
+    interval='1d')
+    sigma = average_move_from_open(intra_df, daily_df, 14)
+    
+    # Get key prices
+    #today_open = open_data.open[0]
+    #current_close = current_bars['close'][0]
+    #low = current_bars['low'][0]
+    ##high = current_bars['high'][0]
+    #avg_price = (current_close + high + low) / 3
+    #volume = current_bars['volume'][0]
+    #yesterday_close = self.daily_data.close.iloc[-1]
+    #sigma = avg_move_from_open.loc[current_time].values[0]
+    print(avg_move_from_open)
 
-    #### I AM COMPARING THE STRUCTURE OF THE YAHOO FINANCE AND BINANCE DATA, IN ORDER TO DEFINE A COMMON STRUCTURE FOR ALL MY DATASOURCES
-    ### SINCE THE APP CURRENTLY WORKS WITH YAHOO FINANCE DATA, ALL SUBSEQUENT DATA SOURCES WILL BE STRUCTURED IN THE SAME WAY AS YAHOO FINANCE
-
-    print('Yahoo finance data:')
-    print(df_yf.columns)
-    print(df_yf.index)
-
-    print('Binance data:')
-    print(df_binance.columns)
-    print(df_binance.index)
-
-    print(df_yf.head())
-
-    print(df_binance.head())

@@ -65,7 +65,10 @@ class Rule:
 
 
     def _get_indicator_values(self, indicator: Union[Indicator, CompositeIndicator], df: pd.DataFrame) -> np.ndarray:
-        if isinstance(indicator, CompositeIndicator):
+        if isinstance(indicator, float):
+            # Return an array filled with the constant value
+            return np.full(len(df), indicator)
+        elif isinstance(indicator, CompositeIndicator):
             return self._evaluate_composite_indicator(indicator, df)
         elif isinstance(indicator, Indicator):
             # Evaluate simple indicators
@@ -75,7 +78,7 @@ class Rule:
                 return df[indicator.name].values
             elif indicator.name in INDICATORS:
                 # Handle indicator functions
-                if indicator.name == 'VWAP':
+                if indicator.name == 'VWAP' or indicator.name == 'Average_Move_From_Open':
                     # For VWAP, pass the whole DataFrame
                     return INDICATORS[indicator.name](df).values
                 else:
@@ -108,7 +111,18 @@ class Rule:
         # Evaluate each indicator in the composite indicator
         indicator_values = [self._get_indicator_values(ind, df) for ind in composite_indicator.indicators]
         # Apply the function to the indicator values
-        if composite_indicator.function == 'max':
+        if composite_indicator.function == 'shift':
+            if len(indicator_values) != 2:
+                raise ValueError("Shift function requires exactly two parameters: indicator and periods")
+            series = indicator_values[0]
+            periods = indicator_values[1]
+            # Ensure periods is an integer
+            if isinstance(periods, np.ndarray):
+                periods = periods[0]  # Extract the scalar value
+            if not isinstance(periods, (int, float)):
+                raise ValueError("Shift periods must be a number")
+            return pd.Series(series).shift(int(periods)).values
+        elif composite_indicator.function == 'max':
             return np.maximum.reduce(indicator_values)
         elif composite_indicator.function == 'min':
             return np.minimum.reduce(indicator_values)
@@ -155,13 +169,20 @@ class CompositeRule:
             raise ValueError(f"Unsupported logic: {self.logic}")
 
 
-def parse_indicator(indicator_str: str) -> Union[Indicator, CompositeIndicator]:
+import re
+from typing import Union
+
+def parse_indicator(indicator_str: str) -> Union[Indicator, CompositeIndicator, float]:
     print(f"Parsing indicator: {indicator_str}")
-    # Check for composite indicators
-    composite_match = re.match(r'(max|min|mean|add|subtract|multiply|divide)\((.*)\)', indicator_str)
+    # First, check if indicator_str is a number (constant)
+    if is_number(indicator_str):
+        return float(indicator_str)
+    
+    # Update regex to include 'shift'
+    composite_match = re.match(r'(max|min|mean|add|subtract|multiply|divide|shift)\((.*)\)', indicator_str)
     if composite_match:
         function_name, params_str = composite_match.groups()
-        # Split the parameters, which are indicators themselves
+        # Split the parameters, which may include nested functions
         params = split_params(params_str)
         indicators = [parse_indicator(param.strip()) for param in params]
         return CompositeIndicator(function=function_name, indicators=indicators)

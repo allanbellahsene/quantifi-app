@@ -37,7 +37,69 @@ def VWAP(df: pd.DataFrame) -> pd.Series:
     vwap = cum_vol_price / cum_volume
     return vwap.shift()
 
-# Dictionary of available indicators
+
+def average_move_from_open(intraday_df: pd.DataFrame, 
+                             daily_df: pd.DataFrame,
+                             rolling_window: int) -> pd.DataFrame:
+    """
+    Creates a matrix with times as rows and dates as columns, with values normalized by daily open.
+    
+    Args:
+        intraday_df: DataFrame with minute-level data (columns: volume, open, high, low, close, caldt)
+        daily_df: DataFrame with daily data (columns: volume, open, high, low, close, caldt)
+        
+    Returns:
+        DataFrame with times as index and last 14 calendar dates as columns, values normalized by daily open
+    """
+    # Convert caldt to datetime for both dataframes
+    intraday_df = intraday_df.copy()
+    daily_df = daily_df.copy()
+    
+    intraday_df['datetime'] = pd.to_datetime(intraday_df.index, utc=True)
+    daily_df['datetime'] = pd.to_datetime(daily_df.index, utc=True)
+
+    intraday_df['datetime'] = intraday_df['datetime'].dt.tz_convert('America/New_York')
+    daily_df['datetime'] = daily_df['datetime'].dt.tz_convert('America/New_York')
+    
+    # Extract date and time for intraday data
+    intraday_df['date'] = intraday_df['datetime'].dt.date
+    intraday_df['time'] = intraday_df['datetime'].dt.strftime('%H:%M')
+    
+    # Extract date for daily data
+    daily_df['date'] = daily_df['datetime'].dt.date
+    
+    # Create a dictionary of daily opens for quick lookup
+    daily_opens = daily_df.set_index('date')['Open'].to_dict()
+    
+    # Create the basic time-date matrix first
+    pivot_df = intraday_df.pivot(
+        index='time',
+        columns='date',
+        values='Close'
+    )
+
+    
+    # Get the last X dates
+    last_X_dates = sorted(intraday_df['date'].unique())[-rolling_window:]
+    pivot_df = pivot_df[last_X_dates]
+
+    
+    # Normalize each column by its daily open
+    for date in last_X_dates:
+        if date in daily_opens:
+            pivot_df[date] = abs(pivot_df[date] / daily_opens[date] - 1)
+    
+    # Sort index by time
+    pivot_df.sort_index(inplace=True)
+    
+    # Round to 4 decimal places for readability
+    pivot_df = pivot_df.round(4)
+
+    avg_move_from_open = pd.DataFrame(pivot_df.mean(axis=1), columns=['avg_move_from_open'])
+    
+    return avg_move_from_open
+
+# Add to INDICATORS dictionary
 INDICATORS: Dict[str, Callable] = {
     'SMA': SMA,
     'EMA': EMA,
@@ -45,5 +107,6 @@ INDICATORS: Dict[str, Callable] = {
     'Rolling_Low': rolling_low,
     'MA_trend': MA_trend,
     'VWAP': VWAP,
+    'Average_Move_From_Open': average_move_from_open,
 }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   Grid,
@@ -13,14 +13,11 @@ import {
   Radio,
   Typography,
   Paper,
-  Chip,
 } from '@mui/material';
-import { 
-  Delete as DeleteIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-} from '@mui/icons-material';
+import { Delete as DeleteIcon } from '@mui/icons-material';
 import FunctionBuilder from './FunctionBuilder';
+
+// In RuleComponent.js, modify the IndicatorSection component:
 
 const IndicatorSection = ({
   side,
@@ -42,6 +39,7 @@ const IndicatorSection = ({
       type
     );
 
+    // Reset appropriate fields based on type
     if (type === 'simple') {
       updateRule(
         strategyIndex,
@@ -60,6 +58,7 @@ const IndicatorSection = ({
       );
     }
 
+    // Always ensure useRightIndicator is true when on right side
     if (side === 'right') {
       updateRule(
         strategyIndex,
@@ -77,6 +76,7 @@ const IndicatorSection = ({
         {side.charAt(0).toUpperCase() + side.slice(1)} Side
       </Typography>
       
+      {/* Indicator Type Toggle */}
       <RadioGroup
         row
         value={indicator?.type || 'simple'}
@@ -174,9 +174,7 @@ const RuleComponent = ({
   removeRule,
   indicators,
 }) => {
-  const [expanded, setExpanded] = useState(true);
-
-  // Handler for right indicator updates
+  // Handler for when right indicator is updated
   const handleRightIndicatorUpdate = (e) => {
     const indicatorName = e.target.value;
     updateRule(
@@ -208,93 +206,10 @@ const RuleComponent = ({
     }
   };
 
-  // Format rule into readable string
-  const formatRule = () => {
-    const leftPart = rule.leftIndicator?.type === 'simple'
-      ? `${rule.leftIndicator.name}${rule.leftIndicator.params?.window ? '(' + rule.leftIndicator.params.window + ')' : ''}`
-      : 'Custom';
-
-    const rightPart = rule.useRightIndicator
-      ? (rule.rightIndicator?.type === 'simple'
-          ? `${rule.rightIndicator.name}${rule.rightIndicator.params?.window ? '(' + rule.rightIndicator.params.window + ')' : ''}`
-          : 'Custom')
-      : rule.rightValue;
-
-    return `${leftPart} ${rule.operator} ${rightPart}`;
-  };
-
-  // Collapsed view
-  const CollapsedView = () => (
-    <Box sx={{ mb: 2 }}>
-      <Grid container spacing={2}>
-        {ruleIndex > 0 && (
-          <Grid item xs={12}>
-            <Chip
-              size="small"
-              label={rule.logicalOperator?.toUpperCase() || 'AND'}
-              sx={{ 
-                backgroundColor: 'grey.200',
-                fontSize: '0.75rem',
-                mb: 1
-              }}
-            />
-          </Grid>
-        )}
-        <Grid item xs={12}>
-          <Paper 
-            elevation={1} 
-            sx={{ 
-              p: 2, 
-              backgroundColor: 'background.paper',
-              cursor: 'pointer',
-              '&:hover': {
-                backgroundColor: 'grey.50'
-              }
-            }}
-            onClick={() => setExpanded(true)}
-          >
-            <Box display="flex" alignItems="center" justifyContent="space-between">
-              <Box display="flex" alignItems="center" gap={1}>
-                <Chip
-                  size="small"
-                  label={formatRule()}
-                  color="primary"
-                  variant="outlined"
-                  sx={{ '& .MuiChip-label': { fontSize: '0.75rem' } }}
-                />
-              </Box>
-              <Box display="flex" alignItems="center" gap={1}>
-                <IconButton
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeRule(strategyIndex, ruleIndex, ruleType);
-                  }}
-                  color="error"
-                  size="small"
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setExpanded(true);
-                  }}
-                  size="small"
-                >
-                  <ExpandMoreIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Box>
-  );
-
-  // Expanded view
-  const ExpandedView = () => (
+  return (
     <Box sx={{ mb: 2 }}>
       <Grid container spacing={2} alignItems="flex-start">
+        {/* Logical Operator (for rules after the first one) */}
         {ruleIndex > 0 && (
           <Grid item xs={12}>
             <FormControl fullWidth variant="outlined" size="small">
@@ -321,21 +236,6 @@ const RuleComponent = ({
 
         <Grid item xs={12}>
           <Paper elevation={1} sx={{ p: 2, backgroundColor: 'background.paper' }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="subtitle2" color="text.secondary">
-                Rule {ruleIndex + 1}
-              </Typography>
-              <Box>
-                <IconButton
-                  onClick={() => setExpanded(false)}
-                  size="small"
-                  sx={{ mr: 1 }}
-                >
-                  <ExpandLessIcon />
-                </IconButton>
-              </Box>
-            </Box>
-
             <Grid container spacing={2} alignItems="flex-start">
               {/* Left Side */}
               <Grid item xs={12} md={5}>
@@ -410,8 +310,6 @@ const RuleComponent = ({
       </Grid>
     </Box>
   );
-
-  return expanded ? <ExpandedView /> : <CollapsedView />;
 };
 
 export default RuleComponent;

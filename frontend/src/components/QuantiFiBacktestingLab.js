@@ -9,12 +9,7 @@ import { styled } from '@mui/material/styles';
 import BacktestingParameters from './BacktestingParameters';
 import StrategyBuilder from './StrategyBuilder';
 import TradesTable from './TradesTable';
-import TradeReturnsHistogram from './TradesHistogram';
 import ChartSystem from './ChartSystem';
-
-const FEATURE_FLAGS = {
-  SHOW_TRADE_ANALYSIS: false,  // Set to false to disable trade analysis
-};
 
 
 // Create a PrimaryButton component
@@ -44,6 +39,7 @@ const INDICATORS = [
   { name: 'Rolling_Low', params: ['series', 'window'] },
   { name: 'MA_trend', params: ['series', 'ma_window', 'return_window'] },
   { name: 'VWAP', params: [] },
+  { name: 'Average_Move_From_Open', params: ['window'] },
 ];
 
 
@@ -83,7 +79,7 @@ const QuantiFiBacktestingLab = () => {
   };
   
   const addStrategy = () => {
-    const defaultFrequency = dataSource === 'Yahoo Finance' ? 'Daily' : '1h';
+    const defaultFrequency = dataSource === 'Yahoo Finance' ? 'Daily' : '1h'; // You can choose a default
     setStrategies([...strategies, {
       name: `Strategy ${strategies.length + 1}`,
       allocation: 100,
@@ -91,19 +87,16 @@ const QuantiFiBacktestingLab = () => {
       entryRules: [],
       exitRules: [],
       active: true,
-      entryRegimeRules: [],  // Separate rules for entry regime
-      exitRegimeRules: [],   // Separate rules for exit regime
-      regimeEntryAction: null,
-      regimeExitAction: null,
-      regimeAsset: '',
-      position_size_method: 'fixed',
-      fixed_position_size: 1.0,
-      volatility_target: null,
-      volatility_lookback: 30,
-      volatility_buffer: null,
-      max_leverage: 1.0,
+      position_size: 1,
+      regime_filter: null,
+      position_size_method: 'fixed', // New parameter
+      fixed_position_size: 1.0,      // New parameter
+      volatility_target: null,       // New parameter
+      volatility_lookback: 30,       // New parameter
+      volatility_buffer: null,       // New parameter
+      max_leverage: 1.0, 
       frequency: defaultFrequency,
-      collapsed: false,
+      collapsed: false, // New property to track collapse state
     }]);
   };
 
@@ -339,14 +332,9 @@ const QuantiFiBacktestingLab = () => {
         const strategyData = {
           name: strategy.name,
           allocation: strategy.allocation,
-          positionType: strategy.positionType,
           entryRules: processRules(strategy.entryRules),
           exitRules: processRules(strategy.exitRules),
-          entryRegimeRules: processRules(strategy.entryRegimeRules),  // Make sure these are included
-          exitRegimeRules: processRules(strategy.exitRegimeRules),    // Make sure these are included
-          regimeEntryAction: strategy.regimeEntryAction,
-          regimeExitAction: strategy.regimeExitAction,
-          regimeAsset: strategy.regimeAsset,
+          positionType: strategy.positionType,
           active: strategy.active,
           position_size_method: strategy.position_size_method,
           max_leverage: strategy.max_leverage,
@@ -440,25 +428,19 @@ const QuantiFiBacktestingLab = () => {
         removeRule={removeRule}
         addRule={addRule}
         toggleStrategyCollapse={toggleStrategyCollapse}
-        duplicateStrategy={duplicateStrategy}
+        duplicateStrategy={duplicateStrategy} // Pass the function as a prop
         dataSource={dataSource}
       />
 
-      <PrimaryButton 
-        onClick={runBacktest} 
-        disabled={isLoading} 
-        sx={{ mt: 4 }}
-      >
+
+      <PrimaryButton onClick={runBacktest} disabled={isLoading} sx={{ mt: 4 }}>
         {isLoading ? 'Running Backtest...' : 'Run Backtest'}
       </PrimaryButton>
 
       {error && (
-        <Typography color="error" className="mt-4">
-          {error}
-        </Typography>
+        <Typography color="error" className="mt-4">{error}</Typography>
       )}
 
-      {/* Results Section */}
       {backtestResults && (
         <div>
           <ChartSystem
@@ -471,19 +453,14 @@ const QuantiFiBacktestingLab = () => {
             startDate={startDate}
             endDate={endDate}
           />
-          
-          {backtestResults.metrics && (
+        {backtestResults.metrics && (
             <MetricsTable metrics={backtestResults.metrics} />
-          )}
-          
-          {backtestResults?.trades && backtestResults.trades.length > 0 && (
-            <>
-              <TradesTable trades={backtestResults.trades} />
-              <TradeReturnsHistogram trades={backtestResults.trades} />
-            </>
-          )}
-        </div>
-      )}
+            )}
+        {backtestResults.trades && (
+            <TradesTable trades={backtestResults.trades} />
+            )}
+            </div>
+        )}
     </div>
   );
 };
