@@ -98,6 +98,8 @@ const QuantiFiBacktestingLab = () => {
       max_leverage: 1.0, 
       frequency: defaultFrequency,
       collapsed: false, // New property to track collapse state
+      entryRulesCollapsed: false, // Added for collapsible rules
+      exitRulesCollapsed: false,  // Added for collapsible rules
     }]);
   };
 
