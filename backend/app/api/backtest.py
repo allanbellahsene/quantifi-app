@@ -1,8 +1,10 @@
 #app.api.backtest.py
+import time
 import json
+import logging
 import traceback
 
-from typing     import List
+from typing     import Dict # List,
 from fastapi    import HTTPException, APIRouter, Depends
 
 from sqlalchemy.orm import Session
@@ -10,15 +12,22 @@ from sqlalchemy.orm import Session
 from app.utils.utils        import numpy_to_python, nan_to_null
 from app.core.database      import get_db
 from app.core.jwt_token     import get_current_user
-from app.utils.data_fetcher import download_yf_data
+#from app.utils.data_fetcher import download_yf_data
 
-from app.services.backtest.metrics          import metrics_table
-from app.services.backtest.run_backtest     import run_backtest, Strategy
+#from app.services.backtest.metrics          import metrics_table
+#from app.services.backtest.run_backtest     import run_backtest, Strategy
 from app.services.backtest.trade_analysis   import analyze_all_trades
 
 from app.models.user        import UserSchema
-from app.models.strategy    import RuleInput
+#from app.models.strategy    import RuleInput
 from app.models.backtest    import BacktestInput, BacktestResult_, BacktestResult, convert_backtest_result_to_input
+
+from app.services.data.data_service import DataService
+from app.services.strategy_service.strategy import StrategyService
+from app.services.backtest.metrics_calculator import PortfolioMetricsCalculator
+from app.utils.utils import numpy_to_python, nan_to_null
+
+logger = logging.getLogger(__name__)
 
 ###################################################################################################
 """ Router Handler """
@@ -82,118 +91,123 @@ async def save_backtest(input: BacktestResult_, user: UserSchema = Depends(get_c
 ###################################################################################################
 
 async def backtest(input: BacktestInput):
+    """
+    Main coordinator function for the backtesting process.
+    Orchestrates data fetching, strategy processing, and results calculation.
+    """
     try:
-        print(f"Received backtest input: {input}")
+        logger.info(f"Starting backtest for symbol: {input.symbol}")
+        total_start_time = time.time()
+
+        # 1. Fetch required data
+        data_dict = await DataService.fetch_data(
+            symbol=input.symbol,
+            start=input.start,
+            end=input.end,
+            data_source=input.data_source,
+            strategies=input.strategies
+        )
+
+        # 2. Process strategies
+        strategy_service = StrategyService(input.strategies, input.fees, input.slippage)
+        strategies_results, strategies_info, strategies_df_results = await strategy_service.process_strategies(data_dict)
+
+        # 3. Combine results and calculate portfolio metrics
+        combined_df = await _combine_strategy_results(strategies_results, strategies_info)
         
-        df = download_yf_data(input.symbol, input.start, input.end)
-        print(f"Downloaded data for {input.symbol} from {input.start} to {input.end}")
-        print(df.head())
+        # 4. Calculate portfolio metrics
+        metrics_calculator = PortfolioMetricsCalculator(combined_df, strategies_info)
+        combined_df = metrics_calculator.calculate_all_metrics()
+
+        # 5. Prepare final results
+        result = await _prepare_final_results(
+            combined_df=combined_df,
+            strategies_info=strategies_info,
+            strategies_df_results=strategies_df_results
+        )
+
+        total_time = time.time() - total_start_time
+        logger.info(f"Backtest completed in {total_time:.2f} seconds")
         
-        strategies = []
-        for s in input.strategies:
-            print(f"Processing strategy: {s.name}")
-            try:
-                entry_rule_str = construct_rule_string(s.entryRules)
-                exit_rule_str = construct_rule_string(s.exitRules)
-                
-                print(f"Entry rules: {entry_rule_str}")
-                print(f"Exit rules: {exit_rule_str}")
-
-                # Initialize variables
-                fixed_position_size = None
-                volatility_target = None
-
-                # Handle position sizing based on the method
-                if s.position_size_method == 'fixed':
-                    if s.fixed_position_size is None:
-                        raise ValueError('fixed_position_size must be provided when position_size_method is "fixed"')
-                    fixed_position_size = s.fixed_position_size * s.allocation / 100
-                elif s.position_size_method == 'volatility_target':
-                    if s.volatility_target is None:
-                        raise ValueError('volatility_target must be provided when position_size_method is "volatility_target"')
-                    # Apply allocation to volatility_target
-                    volatility_target = s.volatility_target * s.allocation / 100
-                else:
-                    raise ValueError(f"Unknown position_size_method: {s.position_size_method}")
-                
-                strategy = Strategy(
-                    name=s.name,
-                    entry_rules=entry_rule_str,
-                    exit_rules=exit_rule_str,
-                    position_type=s.positionType,
-                    active=s.active,
-                    regime_filter=s.regime_filter,
-                    position_size_method=s.position_size_method,
-                    fixed_position_size=fixed_position_size,
-                    volatility_target=volatility_target,
-                    volatility_lookback=s.volatility_lookback,
-                    volatility_buffer=s.volatility_buffer,
-                    max_leverage=s.max_leverage,
-                )
-
-                #### NEED TO TAKE INTO ACCOUNT ALLOCATION WHEN POSITION SIZE IS NOT FIXED
-
-                strategies.append(strategy)
-                print(f"Strategy {s.name} created successfully")
-            except Exception as e:
-                print(f"Error creating strategy {s.name}: {str(e)}")
-                print(traceback.format_exc())
-                raise HTTPException(status_code=400, detail=f"Error in strategy {s.name}: {str(e)}")
-        
-        print(f"Running backtest with {len(strategies)} strategies")
-        df_result = run_backtest(df, strategies, input.fees, input.slippage)
-        print("Backtest completed successfully")
-        #df_result.index = df_result.index.strftime('%Y-%m-%d')
-
-        print(df_result)
-        
-        result = metrics_table(df_result, strategies)
-
-        result = json.loads(json.dumps(result, default=numpy_to_python))
-        trades_df = analyze_all_trades(df_result, strategies).fillna(0)
-        trades_list = trades_df.to_dict('records')
-        result['trades'] = trades_list
-        # Print for debugging
-        print("Trades data:")
-        print(result['trades'][:5])  # Print first 5 trades for brevity
-        print(f"Number of trades: {len(result['trades'])}")
-        print(f"Columns in each trade: {list(result['trades'][0].keys())}")
-
-
-        print("Result prepared for return")
-        #print(f"Date range in result: {result['equityCurve'][0]['date']} to {result['equityCurve'][-1]['date']}")
-        print(df_result)
-        # Convert NaN values to None (null in JSON)
-        result = nan_to_null(result)
-
         return result
+
     except Exception as e:
-        print(f"Error in backtest function: {str(e)}")
-        print(traceback.format_exc())
+        logger.error(f"Error in backtest: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=400, detail=str(e))
 
-def construct_rule_string(rules: List[RuleInput]) -> str:
+async def _combine_strategy_results(strategies_results: list, strategies_info: list) -> Dict:
+    """
+    Combines results from multiple strategies into a single DataFrame.
+    """
     try:
-        rule_strings = []
-        for index, r in enumerate(rules):
-            # Filter out empty parameter values
-            left_params = [v for v in r.leftParams.values() if v]
-            left = f"{r.leftIndicator}({','.join(left_params)})" if left_params else r.leftIndicator
+        combined_df = None
+        
+        for idx, df_result in enumerate(strategies_results):
+            strategy = strategies_info[idx]
             
-            if r.useRightIndicator:
-                right_params = [v for v in r.rightParams.values() if v]
-                right = f"{r.rightIndicator}({','.join(right_params)})" if right_params else r.rightIndicator
+            # Define aggregation rules
+            agg_dict = {
+                f'{strategy.name}_returns': lambda x: (x + 1).prod() - 1,
+                f'{strategy.name}_log_returns': 'sum',
+                f'{strategy.name}_position': 'last',
+                f'{strategy.name}_signal': 'last',
+                f'{strategy.name}_cumulative_equity': 'last',
+                f'{strategy.name}_cumulative_log_equity': 'last',
+                f'{strategy.name}_drawdown': 'last',
+                f'{strategy.name}_rolling_sharpe': 'last',
+                'Close': 'last',
+            }
+
+            # Filter for existing columns
+            agg_dict = {k: v for k, v in agg_dict.items() if k in df_result.columns}
+            df_resampled = df_result.resample('D').agg(agg_dict)
+
+            if combined_df is None:
+                combined_df = df_resampled[['Close']].copy()
+                combined_df['portfolio_returns'] = df_resampled[f'{strategy.name}_returns'].fillna(0)
+                combined_df['portfolio_log_returns'] = df_resampled[f'{strategy.name}_log_returns'].fillna(0)
+                combined_df['total_position'] = df_resampled[f'{strategy.name}_position'].fillna(0)
             else:
-                right = r.rightValue if r.rightValue is not None else ""
-            
-            rule_str = f"{left} {r.operator} {right}"
-            if index > 0:
-                rule_str = f"{r.logicalOperator} {rule_str}"
-            rule_strings.append(rule_str)
-        return " ".join(rule_strings)
+                combined_df['portfolio_returns'] += df_resampled[f'{strategy.name}_returns'].fillna(0)
+                combined_df['portfolio_log_returns'] += df_resampled[f'{strategy.name}_log_returns'].fillna(0)
+                combined_df['total_position'] += df_resampled[f'{strategy.name}_position'].fillna(0)
+
+            # Add strategy-specific columns
+            strategy_columns = ['cumulative_equity', 'cumulative_log_equity', 'returns', 
+                              'position', 'drawdown', 'rolling_sharpe', 'signal']
+            for col in strategy_columns:
+                combined_df[f'{strategy.name}_{col}'] = df_resampled[f'{strategy.name}_{col}']
+
+        return combined_df
+
     except Exception as e:
-        print(f"Error in construct_rule_string: {str(e)}")
-        print(traceback.format_exc())
+        logger.error(f"Error combining strategy results: {str(e)}")
+        raise
+
+async def _prepare_final_results(combined_df, strategies_info, strategies_df_results):
+    """
+    Prepares the final results including metrics and trade analysis.
+    """
+    try:
+        from app.services.backtest.metrics import metrics_table
+        
+        # Calculate metrics
+        result = metrics_table(combined_df, strategies_info)
+        result = json.loads(json.dumps(result, default=numpy_to_python))
+
+        # Analyze trades
+        trades_df = analyze_all_trades(strategies_df_results, strategies_info).fillna(0)
+        result['trades'] = trades_df.to_dict('records')
+
+        # Convert NaN values to None for JSON compatibility
+        result = nan_to_null(result)
+
+        #logging.info(f'RESULTS: {result}')
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Error preparing final results: {str(e)}")
         raise
 
 

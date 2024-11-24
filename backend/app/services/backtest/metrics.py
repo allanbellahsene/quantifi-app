@@ -109,7 +109,7 @@ def calculate_best_worst_month(returns: pd.Series) -> (float, float):
         tuple: Best month return, Worst month return.
     """
     try:
-        monthly_returns = returns.resample('M').apply(lambda x: (x + 1).prod() - 1)
+        monthly_returns = (returns + 1).resample('ME').prod() - 1
         best_month = monthly_returns.max()
         worst_month = monthly_returns.min()
     except Exception as e:
@@ -117,6 +117,13 @@ def calculate_best_worst_month(returns: pd.Series) -> (float, float):
         best_month = None
         worst_month = None
     return best_month, worst_month
+
+def rolling_sharpe_ratio(returns: pd.Series, window: int, periods_per_year: int = 365) -> pd.Series:
+    rolling_mean = returns.rolling(window).mean()
+    rolling_std = returns.rolling(window).std()
+    sharpe_ratio = (rolling_mean / rolling_std) * np.sqrt(periods_per_year)
+    sharpe_ratio[rolling_std == 0] = 0  # Handle division by zero
+    return sharpe_ratio
 
 def calculate_metrics(
     returns: pd.Series,
@@ -156,7 +163,7 @@ def calculate_metrics(
 
     # Win rate and loss rate
     total_trades = len(returns)
-    win_rate = len(positive_returns) / total_trades if total_trades > 0 else 0
+    win_rate = len(positive_returns) / total_trades if total_trades >= 0 else 0
     loss_rate = len(negative_returns) / total_trades if total_trades > 0 else 0
 
     # Average win and loss

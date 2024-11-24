@@ -5,6 +5,8 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
+const SHOW_TRADE_METRICS = false; 
+
 const formatValue = (value) => {
   if (value === undefined || value === null) return 'N/A';
   if (typeof value === 'number') {
@@ -93,9 +95,11 @@ const MetricsTable = ({ metrics }) => {
       <Grid item xs={12}>
         <MetricSection title="Drawdown Metrics" metrics={drawdownMetrics} strategies={strategies} metricsData={metrics} />
       </Grid>
+      {SHOW_TRADE_METRICS && (
       <Grid item xs={12}>
         <MetricSection title="Trade Metrics" metrics={tradeMetrics} strategies={strategies} metricsData={metrics} />
       </Grid>
+      )}
       <Grid item xs={12}>
         <MetricSection title="Period Performance" metrics={periodMetrics} strategies={strategies} metricsData={metrics} />
       </Grid>

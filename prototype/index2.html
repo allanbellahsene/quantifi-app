@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technical Writing Course</title>
+    <meta name="description" content="Accelerate your career with technical writing skills">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+    
+    <!-- React and ReactDOM -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.min.js"></script>
+
+    <!-- Custom styles -->
+    <style>
+        body {
+            background-color: #111827;
+        }
+        .animate-fade {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // Your existing React component code here
+        const LandingPage = () => {
+            const [openFaq, setOpenFaq] = React.useState(null);
+
+            const features = [
+                {
+                    icon: "📝",
+                    title: "Learn technical writing basics",
+                    description: "Dive into the fundamentals of technical writing, including how to structure your writing effectively."
+                },
+                {
+                    icon: "🎯",
+                    title: "Build your reputation",
+                    description: "Establish a strong reputation by publishing your content on high-quality, high-authority platforms."
+                },
+                {
+                    icon: "💰",
+                    title: "Earn money",
+                    description: "Learn various ways to monetize your writing, such as freelance writing and creating content."
+                },
+                {
+                    icon: "♾️",
+                    title: "Generate unlimited content ideas",
+                    description: "Learn various techniques for generating content ideas."
+                }
+            ];
+
+            const pricingPlans = [
+                {
+                    title: "Base course",
+                    price: "$40",
+                    description: "The essentials to get you started.",
+                    features: ["Complete course", "2 free updates"],
+                    highlight: false
+                },
+                {
+                    title: "Full course",
+                    price: "$80",
+                    description: "The base course, plus extra benefits and content.",
+                    features: [
+                        "Complete course",
+                        "Free unlimited updates",
+                        "Private community",
+                        "Extra content: Move beyond basics"
+                    ],
+                    highlight: true
+                },
+                {
+                    title: "Full course + Mentorship",
+                    price: "$280",
+                    description: "The full course plus 1:1 mentorship sessions.",
+                    features: [
+                        "Everything from the full course",
+                        "1:1 mentorships (150 minutes)",
+                        "Worth alone $200 without the course"
+                    ],
+                    highlight: false
+                }
+            ];
+
+            const faqs = [
+                { question: "Do you offer refunds?", answer: "Answer here" },
+                { question: "Is this course text only?", answer: "Answer here" },
+                { question: "Will you provide discounts?", answer: "Answer here" },
+                { question: "It's too expensive", answer: "Answer here" },
+                { question: "Where can I ask you a question?", answer: "Answer here" }
+            ];
+
+            return (
+                <div className="min-h-screen bg-gray-900 text-white">
+                    {/* Hero Section */}
+                    <section className="text-center py-20 px-4">
+                        <h1 className="text-5xl font-bold mb-6">
+                            <span className="text-pink-500">Accelerate Your Career</span> with<br />
+                            Technical Writing
+                        </h1>
+                        <p className="text-gray-300 max-w-2xl mx-auto mb-8">
+                            Use the power of technical writing to showcase your expertise, position you as a leader and earn money
+                        </p>
+                        <button className="bg-pink-500 hover:bg-pink-600 text-white px-8 py-3 rounded-full text-lg font-semibold">
+                            Start Writing
+                        </button>
+                    </section>
+
+                    {/* Features Section */}
+                    <section className="py-20 px-4">
+                        <h2 className="text-4xl font-bold text-center mb-12">Become a Technical Writing Pro</h2>
+                        <p className="text-gray-300 text-center mb-16">This course will help you to finally start your technical writing journey</p>
+                        <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+                            {features.map((feature, index) => (
+                                <div key={index} className="p-6 rounded-lg bg-gray-800/50 border border-gray-700">
+                                    <div className="text-2xl mb-4">{feature.icon}</div>
+                                    <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                                    <p className="text-gray-400">{feature.description}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* Pricing Section */}
+                    <section className="py-20 px-4">
+                        <h2 className="text-4xl font-bold text-center mb-12">Stop Procrastinating. Start Now!</h2>
+                        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                            {pricingPlans.map((plan, index) => (
+                                <div 
+                                    key={index} 
+                                    className={`p-6 rounded-lg ${plan.highlight ? 'border-2 border-pink-500' : 'border border-gray-700'} bg-gray-800/50`}
+                                >
+                                    <h3 className="text-xl font-semibold mb-2">{plan.title}</h3>
+                                    <div className="text-4xl font-bold mb-4">{plan.price}</div>
+                                    <p className="text-gray-400 mb-6">{plan.description}</p>
+                                    <ul className="space-y-3 mb-6">
+                                        {plan.features.map((feature, idx) => (
+                                            <li key={idx} className="flex items-center">
+                                                <span className="text-pink-500 mr-2">✓</span>
+                                                {feature}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <button className="w-full bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-semibold">
+                                        Secure your spot
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* FAQ Section */}
+                    <section className="py-20 px-4 max-w-3xl mx-auto">
+                        <h2 className="text-4xl font-bold text-center mb-12">Frequently Asked Questions</h2>
+                        <div className="space-y-4">
+                            {faqs.map((faq, index) => (
+                                <div key={index} className="border-b border-gray-700">
+                                    <button
+                                        className="w-full py-4 flex justify-between items-center text-left"
+                                        onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                                    >
+                                        <span className="text-lg">{faq.question}</span>
+                                        <span 
+                                            className={`text-2xl transform transition-transform ${openFaq === index ? 'rotate-45' : ''}`}
+                                        >
+                                            +
+                                        </span>
+                                    </button>
+                                    {openFaq === index && (
+                                        <div className="pb-4 text-gray-400 animate-fade">
+                                            {faq.answer}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                </div>
+            );
+        };
+
+        // Render the app
+        ReactDOM.render(<LandingPage />, document.getElementById('root'));
+    </script>
+</body>
+</html>

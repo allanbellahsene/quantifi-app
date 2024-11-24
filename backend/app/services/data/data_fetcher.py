@@ -29,6 +29,23 @@ class RateLimiter:
 class RateLimitException(Exception):
     pass
 
+
+def map_symbol_to_binance(symbol: str) -> str:
+    """
+    Map a symbol to Binance's format.
+    """
+    # Replace '-' with '' and change 'USD' to 'USDT'
+    if '-' in symbol:
+        base, quote = symbol.split('-')
+        if quote == 'USD':
+            quote = 'USDT'
+        binance_symbol = f'{base}{quote}'
+    else:
+        binance_symbol = symbol
+
+    return binance_symbol.upper()
+
+
 @RateLimiter(max_calls=5, period=60)  # 5 calls per minute
 def fetch_binance_data(symbol: str, start_date: str, end_date: str, interval='1d'):
     try:
@@ -37,6 +54,8 @@ def fetch_binance_data(symbol: str, start_date: str, end_date: str, interval='1d
         # Convert date strings to milliseconds timestamp
         start_ms = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
         end_ms = int(datetime.strptime(end_date, "%Y-%m-%d").timestamp() * 1000)
+
+        symbol = map_symbol_to_binance(symbol)
         
         # Fetch klines data
         klines = client.get_historical_klines(symbol, interval, start_ms, end_ms)
@@ -58,6 +77,7 @@ def fetch_binance_data(symbol: str, start_date: str, end_date: str, interval='1d
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         
         logger.info(f"Successfully fetched data for {symbol} from {start_date} to {end_date}")
+        df.index.names = ['Date']
         return df
     
     except RateLimitException as e:
@@ -82,4 +102,27 @@ def download_yf_data(symbol: str, start: str, end: str) -> pd.DataFrame:
     """
     df: pd.DataFrame = yf.download(symbol, start=start, end=end)[['Open', 'High', 'Low', 'Close', 'Volume']]
     btc: pd.DataFrame = yf.download('BTC-USD', start=start, end=end)[['Close']].rename(columns={'Close': 'BTC-USD'})
-    return df.merge(btc, right_index=True, left_index=True, how='left')
+    df= df.merge(btc, right_index=True, left_index=True, how='left')
+    df.columns = df.columns.get_level_values(0)
+    return df
+
+
+if __name__ == "__main__":
+    from app.services.strategy_module.indicators import average_move_from_open
+    intra_df = fetch_binance_data(symbol='BTCUSDT', start_date='2020-01-01', end_date='2020-03-01',
+    interval='30m')
+    daily_df = fetch_binance_data(symbol='BTCUSDT', start_date='2020-01-01', end_date='2020-03-01',
+    interval='1d')
+    sigma = average_move_from_open(intra_df, daily_df, 14)
+    
+    # Get key prices
+    #today_open = open_data.open[0]
+    #current_close = current_bars['close'][0]
+    #low = current_bars['low'][0]
+    ##high = current_bars['high'][0]
+    #avg_price = (current_close + high + low) / 3
+    #volume = current_bars['volume'][0]
+    #yesterday_close = self.daily_data.close.iloc[-1]
+    #sigma = avg_move_from_open.loc[current_time].values[0]
+    print(avg_move_from_open)
+

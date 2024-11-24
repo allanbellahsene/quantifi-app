@@ -1,5 +1,8 @@
+#trade_analysis.py
+
 import pandas as pd
 import numpy as np
+from typing import List, Any
 
 def process_trade(trade_df):
     entry_date = trade_df['Date'].iloc[0]
@@ -26,7 +29,6 @@ def process_trade(trade_df):
 
     elif initial_position < 0:
         # Short trade
-        trade_type = 'Short'
         # Entry when delta_pos < 0 (position decreases, more negative)
         delta_pos_entry = -delta_pos[delta_pos < 0]  # Convert to positive quantities
         Close_entry = Close[delta_pos < 0]
@@ -88,11 +90,10 @@ def process_trade(trade_df):
 
 def trade_analysis(data, strategy):
     df = data.copy()
-    print(df)
     df = df[['Close', f'{strategy.name}_position']].dropna()
     df['Date'] = pd.to_datetime(df.index)
-    print(df.columns)
     df['position'] = df[f'{strategy.name}_position']
+
     # Step 1: Compute position and delta_position
     df['delta_position'] = df['position'].diff().fillna(0)
 
@@ -100,27 +101,36 @@ def trade_analysis(data, strategy):
     df['entry_mask'] = ((df['position'].shift(1).fillna(0) == 0) & (df['position'] != 0)).astype(int)
     df['trade_id'] = df['entry_mask'].cumsum()
 
-    # **Fix: Only set trade_id to NaN when position is zero and there's no position change**
+    # Fix: Only set trade_id to NaN when position is zero and there's no position change
     df.loc[(df['position'] == 0) & (df['delta_position'] == 0), 'trade_id'] = np.nan
-        # Step 4: Apply the function to each trade
+
+    # Step 4: Apply the function to each trade
     df_valid_trades = df[df['trade_id'].notnull()]
     trades = df_valid_trades.groupby('trade_id').apply(process_trade).reset_index(drop=True)
     trades['strategy'] = strategy.name
 
     return trades
 
-def analyze_all_trades(df: pd.DataFrame, strategies) -> pd.DataFrame:
+
+def analyze_all_trades(strategies_df_results: List[pd.DataFrame], strategies_info: List[Any]) -> pd.DataFrame:
     TRADES_DF = []
-    for strategy in strategies:
+    for idx, df in enumerate(strategies_df_results):
+        strategy = strategies_info[idx]
         trades = trade_analysis(df, strategy)
         TRADES_DF.append(trades)
 
-    trades_df = pd.concat([TRADES_DF[i] for i in range(len(TRADES_DF))], axis=0)
+    trades_df = pd.concat(TRADES_DF, axis=0)
     trades_df['Entry Date'] = pd.to_datetime(trades_df['Entry Date'])
     trades_df.sort_values(by='Entry Date', inplace=True, ascending=False)
 
-    trades_df = trades_df.rename(columns={"Average Entry Price": "avg_entry_price", "Average Exit Price": "avg_exit_price",
-                                          "Entry Date": "entry_date", "Exit Date": "exit_date", "Position":
-                                          "position", "Trade Return": "trade_return", "Trade Type": "trade_type"})
+    trades_df = trades_df.rename(columns={
+        "Average Entry Price": "avg_entry_price",
+        "Average Exit Price": "avg_exit_price",
+        "Entry Date": "entry_date",
+        "Exit Date": "exit_date",
+        "Position": "position",
+        "Trade Return": "trade_return",
+        "Trade Type": "trade_type"
+    })
 
     return trades_df
