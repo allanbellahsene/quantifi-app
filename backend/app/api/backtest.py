@@ -1,62 +1,85 @@
 #app.api.backtest.py
-from fastapi import HTTPException
-from pydantic import BaseModel
-from typing import List, Dict, Optional
-from app.services.backtest.run_backtest import run_backtest, Strategy
-from app.services.backtest.metrics import metrics_table
-import traceback
-from app.utils.utils import numpy_to_python, nan_to_null
 import json
+import traceback
+
+from typing     import List
+from fastapi    import HTTPException, APIRouter, Depends
+
+from sqlalchemy.orm import Session
+
+from app.utils.utils        import numpy_to_python, nan_to_null
+from app.core.database      import get_db
+from app.core.jwt_token     import get_current_user
 from app.utils.data_fetcher import download_yf_data
-from pydantic import validator
-from app.services.backtest.trade_analysis import analyze_all_trades
 
-class RuleInput(BaseModel):
-    leftIndicator: str
-    leftParams: Dict[str, str]
-    operator: str
-    useRightIndicator: bool = True
-    rightIndicator: str = ""
-    rightParams: Dict[str, str] = {}
-    rightValue: Optional[str] = None
-    logicalOperator: str = "and"
+from app.services.backtest.metrics          import metrics_table
+from app.services.backtest.run_backtest     import run_backtest, Strategy
+from app.services.backtest.trade_analysis   import analyze_all_trades
 
-class StrategyInput(BaseModel):
-    name: str
-    allocation: float
-    positionType: str
-    entryRules: List[RuleInput]
-    exitRules: List[RuleInput]
-    active: bool = True
-    regime_filter: Optional[str] = None
-    position_size_method: str = 'fixed'
-    fixed_position_size: Optional[float] = None    
-    volatility_target: Optional[float] = None       
-    volatility_lookback: Optional[int] = 30      
-    volatility_buffer: Optional[float] = None       
-    max_leverage: float = 1.0
+from app.models.user        import UserSchema
+from app.models.strategy    import RuleInput
+from app.models.backtest    import BacktestInput, BacktestResult_, BacktestResult, convert_backtest_result_to_input
 
-    @validator('fixed_position_size', always=True)
-    def validate_fixed_position_size(cls, v, values):
-        if values.get('position_size_method') == 'fixed' and v is None:
-            raise ValueError('fixed_position_size must be provided when position_size_method is "fixed"')
-        return v
+###################################################################################################
+""" Router Handler """
+###################################################################################################
 
-    @validator('volatility_target', always=True)
-    def validate_volatility_target(cls, v, values):
-        if values.get('position_size_method') == 'volatility_target' and v is None:
-            raise ValueError('volatility_target must be provided when position_size_method is "volatility_target"')
-        return v
+router = APIRouter()
 
+@router.get("")
+async def backtest_endpoint(input: BacktestInput):
+    try:
+        return await backtest(input)
+    except Exception as e:
+        print(f"Backtest error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-class BacktestInput(BaseModel):
-    symbol: str
-    start: str
-    end: str
-    fees: float
-    slippage: float
-    strategies: List[StrategyInput]
+@router.get("/saved")
+async def backtest_saved(user: UserSchema = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        return db.query(BacktestResult).filter(BacktestResult.email == user.email).all()
+    except Exception as e:
+        print(f"Backtest error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/result/{id}")
+async def backtest_results(id: int, user: UserSchema = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        backtest_input  = db.query(BacktestResult).order_by(BacktestResult.id == id, BacktestResult.email == user.email).first()
+        backtest_input  = convert_backtest_result_to_input(backtest_input)
+
+        result  = await backtest(input = backtest_input)
+
+        return result
+    except Exception as e:
+        print(f"Backtest error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/save")
+async def save_backtest(input: BacktestResult_, user: UserSchema = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        backtest_result = BacktestResult(
+            email=user.email,
+            symbol=input.symbol,
+            start=input.start,
+            end=input.end,
+            fees=input.fees,
+            slippage=input.slippage,
+            strategies=json.dumps([s.dict() for s in input.strategies]),
+            sharpe_ratio=input.sharpe_ratio,
+            max_drawdown=input.max_drawdown,
+            cagr=input.cagr
+        )
+        db.add(backtest_result)
+        db.commit()
+        db.refresh(backtest_result)
+    except Exception as e:
+        print(f"Backtest error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+###################################################################################################
+""" Backtest Function """
+###################################################################################################
 
 async def backtest(input: BacktestInput):
     try:
@@ -142,7 +165,7 @@ async def backtest(input: BacktestInput):
         print(df_result)
         # Convert NaN values to None (null in JSON)
         result = nan_to_null(result)
-        
+
         return result
     except Exception as e:
         print(f"Error in backtest function: {str(e)}")

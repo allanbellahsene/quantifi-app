@@ -4,6 +4,12 @@
 
 ### Test
 
+There are three differents things to test:
+
+1. Registering & Login by username, email and password
+2. Registering & Login by Gmail
+3. Access protected routes if login
+
 To test the authentication procedure, there are two ways.
 First via the *curl* command and second via a *React App*.
 
@@ -11,6 +17,11 @@ First via the *curl* command and second via a *React App*.
 ```
 cd test
 ./test_protected.sh
+```
+2. For the test via React App, go to *test/auth-app*
+```
+cd test/auth-app
+npm start
 ```
 
 ## Migration

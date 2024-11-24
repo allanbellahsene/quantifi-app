@@ -5,6 +5,7 @@ import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 const BASE_URL = 'http://localhost:8001';
 
 const App = () => {
+  const [username, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -28,8 +29,11 @@ const App = () => {
   const handleRegister = async () => {
     try {
       const response = await axios.post(
-        `${BASE_URL}/api/auth/register`,
-        { email, password },
+        `${BASE_URL}/api/auth/register`,{
+          username: username,
+          email: email,
+          password: password
+        },
         { withCredentials: true }  // Secure cookie handling
       );
       alert('Registration successful!');
@@ -85,7 +89,16 @@ const App = () => {
         <h2>Login or Register</h2>
         
         <div>
-          <label>Username/Email: </label>
+          <label>Username: </label>
+          <input 
+            type="username" 
+            value={username} 
+            onChange={(e) => setName(e.target.value)}
+            required 
+          />
+        </div>
+        <div>
+          <label>Email: </label>
           <input 
             type="email" 
             value={email} 

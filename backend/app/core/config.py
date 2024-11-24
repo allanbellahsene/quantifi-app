@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
     
+    SUPERADMIN_SECRET_KEY: str
+    BOTADMIN_SECRET_KEY: str
+    
     ALLOWED_ORIGINS: List[AnyHttpUrl] = ["http://localhost:3000"]  # Frontend URL
     
     # Logging

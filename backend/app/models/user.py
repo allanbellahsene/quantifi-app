@@ -1,8 +1,16 @@
+# app.models.user.py
+import enum
+
 from typing     import Union
 from pydantic   import BaseModel, EmailStr
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Enum
 
 from app.core.database  import Base
+
+class UserRole(enum.Enum):
+    baseuser    = "user"
+    botadmin    = "botadmin"
+    superadmin  = "superadmin"
 
 ###################################################################################################
 """ User pydantic Model """
@@ -21,7 +29,7 @@ Data Validation and API Schema (Pydantic Model):
 class UserSchema(BaseModel):
     username: str
     email: EmailStr
-    hashed_password: str
+    role: UserRole
 
 class UserRegister(BaseModel):
     username: str
@@ -31,7 +39,7 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     username_email: Union[str, EmailStr]
     password: str
-
+    
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -55,14 +63,4 @@ class User(Base):
     username        = Column(String, unique=True, index=True)
     email           = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-
-
-"""
-class UserInDB(User):
-    id: int
-
-class UserCreate(BaseModel):
-    username: str
-    email: EmailStr
-    password: str
-"""
+    role            = Column(Enum(UserRole), default=UserRole.baseuser, nullable=False)

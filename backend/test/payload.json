@@ -1,0 +1,40 @@
+{
+  "symbol": "BTC-USD",
+  "start": "2020-01-01",
+  "end": "2024-09-10",
+  "fees": 0.5,
+  "slippage": 0.1,
+  "strategies": [
+    {
+      "name": "strategy_1",
+      "allocation": 100,
+      "positionType": "Long",
+      "entryRules": [
+        {
+          "leftIndicator": "SMA",
+          "leftParams": { "period": "10" },
+          "operator": ">",
+          "useRightIndicator": true,
+          "rightIndicator": "SMA",
+          "rightParams": { "period": "50" }
+        }
+      ],
+      "exitRules": [
+        {
+          "leftIndicator": "SMA",
+          "leftParams": { "period": "5" },
+          "operator": "<",
+          "useRightIndicator": true,
+          "rightIndicator": "SMA",
+          "rightParams": { "period": "10" }
+        }
+      ],
+      "active": true,
+      "position_size_method": "fixed",
+      "fixed_position_size": 100
+    }
+  ],
+  "sharpe_ratio": 1.5,
+  "max_drawdown": 0.1,
+  "cagr": 0.2
+}

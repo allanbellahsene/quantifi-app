@@ -6,10 +6,10 @@ from fastapi            import APIRouter, Depends, HTTPException, Request, Respo
 
 from authlib.integrations.starlette_client import OAuth
 
-from app.api.crud           import get_user_by_username, get_user_by_email, create_user_with_google
-from app.models.user        import User, UserRegister, UserLogin, Token
-from app.core.security      import get_password_hash, verify_password
-from app.core.jwt_token     import create_access_token, set_cookie_token
+from app.services.auth.crud import get_user_by_username, get_user_by_email, create_user_with_google, create_user
+from app.models.user        import User, UserRegister, UserLogin, Token, UserRole, UserSchema
+from app.core.security      import verify_password
+from app.core.jwt_token     import set_cookie_token, superadmin_required
 from app.core.database      import get_db
 
 from app.core.config import logging, settings
@@ -23,38 +23,19 @@ router = APIRouter()
 
 # User registration route
 @router.post("/register", response_model=Token)
-async def register(user: UserRegister, db: Session = Depends(get_db)):
-    # Check if user already exists
-    db_username = get_user_by_username(db, user.username)
-    db_email    = get_user_by_email(db, user.email)
-    if db_username:
-        raise HTTPException(status_code=400, detail="Username already registered")
-    if db_email:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # Hash the password and create a new user
-    hashed_password = get_password_hash(user.password)
-    new_user        = User(username=user.username, email=user.email, hashed_password=hashed_password)
-    
-    # Save user in the database
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+async def register(response: Response, user: UserRegister, db: Session = Depends(get_db)):
+    # Create User if it doesn't exist
+    new_user    = create_user(db, user = user, role = UserRole.baseuser)
     
     # Create JWT token for the user
-    access_token    = create_access_token(data={"sub": new_user.username})
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+    return set_cookie_token(response, UserSchema(username=new_user.username, email=new_user.email, role= new_user.role))
 
 # User login route
 @router.post("/login", response_model=Token)
 async def login(response: Response, user: UserLogin, db: Session = Depends(get_db)):
     # Check if user exists
-    logger.info(f"{user}")
     db_username = get_user_by_username(db, user.username_email)
-    logger.info(f"{db_username}")
     db_email    = get_user_by_email(db, user.username_email)
-    logger.info(f"{db_email}")
     if not db_username and not db_email:
         raise HTTPException(status_code=400, detail="Invalid username, email or password")
     
@@ -66,7 +47,7 @@ async def login(response: Response, user: UserLogin, db: Session = Depends(get_d
         raise HTTPException(status_code=400, detail="Invalid username, email or password")
     
     # Create JWT token for the user
-    return set_cookie_token(response, db_user.email)
+    return set_cookie_token(response, UserSchema(username=db_user.username, email=db_user.email, role= db_user.role))
 
 ###################################################################################################
 """ Register with Google Account """
@@ -111,4 +92,23 @@ async def auth_callback(request: Request, response: Response, db: Session = Depe
     user    = create_user_with_google(db, user_info)
     
     # Create JWT token for the user
-    return set_cookie_token(response, user.email)
+    return set_cookie_token(response, UserSchema(username=user.username, email=user.email, role= user.role))
+
+###################################################################################################
+""" Handle Bot Admin User """
+###################################################################################################
+
+@router.post("/create-botadmin", response_model=dict)
+async def create_botadmin(
+                            user: UserRegister,
+                            current_user: User = Depends(superadmin_required),
+                            db: Session = Depends(get_db)
+                        ):
+    """
+    Create a new botadmin user. Only superadmin can perform this action.
+    """
+    
+    # Create User if it doesn't exist
+    new_user    = create_user(db, user = user, role = UserRole.baseuser)
+    
+    return {"message": f"Botadmin {new_user.username} created successfully"}
