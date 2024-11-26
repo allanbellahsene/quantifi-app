@@ -1,3 +1,5 @@
+
+//Auth.js
 import React, { useState } from 'react';
 import {
   Box,
@@ -14,8 +16,9 @@ import {
 } from '@mui/material';
 import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
 import axios from 'axios';
+import { BASE_URL } from './config';
 
-const BASE_URL = 'http://localhost:8002';
+//const BASE_URL = 'http://localhost:8002';
 
 // Custom styled AuthContainer component
 const AuthContainer = ({ children }) => (

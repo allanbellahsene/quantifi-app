@@ -15,6 +15,7 @@ import ChartSystem from './ChartSystem';
 import TradeReturnsHistogram from './TradesHistogram';
 import SaveBacktestDialog from './SaveBacktestDialog';
 import MyBacktestsDialog from './MyBacktestsDialog';
+import { BASE_URL } from './config';
 
 
 // Create a PrimaryButton component
@@ -74,7 +75,7 @@ const QuantiFiBacktestingLab = ({ accessToken }) => {
 
   const handleSaveBacktest = async (backtestData) => {
     try {
-      const response = await fetch('http://localhost:8002/api/backtests/save', {
+      const response = await fetch(`${BASE_URL}/api/backtests/save`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -360,7 +361,7 @@ const QuantiFiBacktestingLab = ({ accessToken }) => {
         return strategyData;
       });
   
-      const response = await fetch('http://localhost:8002/api/backtest', {
+      const response = await fetch(`${BASE_URL}/api/backtest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

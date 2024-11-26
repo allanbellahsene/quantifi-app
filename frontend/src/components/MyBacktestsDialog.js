@@ -22,6 +22,7 @@ import {
   Info as InfoIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
+import { BASE_URL } from './config';
 
 const formatMetric = (value) => {
     if (value === null || value === undefined || isNaN(value)) return 'N/A';
@@ -57,7 +58,7 @@ const MyBacktestsDialog = ({
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:8002/api/backtests/list', {
+      const response = await fetch(`${BASE_URL}/api/backtests/list`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
