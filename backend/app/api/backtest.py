@@ -37,6 +37,7 @@ router = APIRouter()
 
 @router.get("")
 async def backtest_endpoint(input: BacktestInput):
+    print(input)
     try:
         return await backtest(input)
     except Exception as e:
@@ -54,7 +55,7 @@ async def backtest_saved(user: UserSchema = Depends(get_current_user), db: Sessi
 @router.get("/result/{id}")
 async def backtest_results(id: int, user: UserSchema = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
-        backtest_input  = db.query(BacktestResult).order_by(BacktestResult.id == id, BacktestResult.email == user.email).first()
+        backtest_input  = db.query(BacktestResult).filter(BacktestResult.id == id, BacktestResult.email == user.email).first()
         backtest_input  = convert_backtest_result_to_input(backtest_input)
 
         result  = await backtest(input = backtest_input)
@@ -70,6 +71,7 @@ async def save_backtest(input: BacktestResult_, user: UserSchema = Depends(get_c
         backtest_result = BacktestResult(
             email=user.email,
             symbol=input.symbol,
+            data_source=input.data_source,
             start=input.start,
             end=input.end,
             fees=input.fees,

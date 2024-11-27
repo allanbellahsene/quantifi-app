@@ -1,6 +1,6 @@
 # app/services/strategy_module/rule_parser.py
 from typing import List
-from app.models.backtest import IndicatorInput, RuleInput
+from app.models.strategy import IndicatorInput, RuleInput
 import logging
 
 logger = logging.getLogger(__name__)
