@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Set the FastAPI URL
-BASE_URL="http://localhost:8001"
-#BASE_URL="http://54.221.75.9:8001"
+#BASE_URL="http://localhost:8001"
+BASE_URL="http://54.221.75.9:8001"
 
 # Set user details
 USERNAME="testuser"
