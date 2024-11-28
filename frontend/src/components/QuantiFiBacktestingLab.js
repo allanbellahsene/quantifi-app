@@ -3,7 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   Button, 
-  Typography} from '@mui/material';
+  Typography,
+  Box
+} from '@mui/material';
+import axios from 'axios';
 import MetricsTable from './MetricsTable';
 import { styled } from '@mui/material/styles';
 import BacktestingParameters from './BacktestingParameters';
@@ -11,6 +14,9 @@ import StrategyBuilder from './StrategyBuilder';
 import TradesTable from './TradesTable';
 import ChartSystem from './ChartSystem';
 import TradeReturnsHistogram from './TradesHistogram';
+import SaveBacktestDialog from './SaveBacktestDialog';
+import MyBacktestsDialog from './MyBacktestsDialog';
+import { BASE_URL } from './config';
 
 
 // Create a PrimaryButton component
@@ -53,9 +59,7 @@ const indicatorTemplate = {
   indicators: [],   // Array of Indicators (for composite indicators)
 };
 
-
-
-const QuantiFiBacktestingLab = () => {
+const QuantiFiBacktestingLab = ({ accessToken }) => {
   const [asset, setAsset] = useState('BTC-USD');
   const [startDate, setStartDate] = useState('2020-01-01');
   const [endDate, setEndDate] = useState('2024-10-09');
@@ -66,8 +70,50 @@ const QuantiFiBacktestingLab = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [dataSource, setDataSource] = useState('Yahoo Finance');
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [isMyBacktestsOpen, setIsMyBacktestsOpen] = useState(false);
 
-  
+  const handleSaveBacktest = async (backtestData) => {
+    try {
+      const response = axios.post(
+        `${BASE_URL}/api/backtest/save`,
+        backtestData,
+        {headers: {
+          'Content-Type': 'application/json',
+        },
+        withCredentials: true,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to save backtest');
+      }
+
+      setIsSaveDialogOpen(false);
+      // You might want to show a success notification here
+    } catch (err) {
+      setSaveError(err.message);
+      throw err;
+    }
+  };
+
+  const handleLoadBacktest = async (backtest) => {
+    try {
+      setAsset(backtest.backtest_config.symbol);
+      setDataSource(backtest.backtest_config.data_source);
+      setStartDate(backtest.backtest_config.start);
+      setEndDate(backtest.backtest_config.end);
+      setFees(backtest.backtest_config.fees);
+      setSlippage(backtest.backtest_config.slippage);
+      setStrategies(backtest.backtest_config.strategies);
+
+      // Automatically run the backtest
+      await runBacktest();
+    } catch (err) {
+      setError('Failed to load backtest: ' + err.message);
+    }
+  };
 
   useEffect(() => {
     console.log('Strategies updated:', strategies);
@@ -78,9 +124,9 @@ const QuantiFiBacktestingLab = () => {
     updatedStrategies[strategyIndex].collapsed = !updatedStrategies[strategyIndex].collapsed;
     setStrategies(updatedStrategies);
   };
-  
+
   const addStrategy = () => {
-    const defaultFrequency = dataSource === 'Yahoo Finance' ? 'Daily' : '1h'; // You can choose a default
+    const defaultFrequency = dataSource === 'Yahoo Finance' ? 'Daily' : '1h';
     setStrategies([...strategies, {
       name: `Strategy ${strategies.length + 1}`,
       allocation: 100,
@@ -90,16 +136,16 @@ const QuantiFiBacktestingLab = () => {
       active: true,
       position_size: 1,
       regime_filter: null,
-      position_size_method: 'fixed', // New parameter
-      fixed_position_size: 1.0,      // New parameter
-      volatility_target: null,       // New parameter
-      volatility_lookback: 30,       // New parameter
-      volatility_buffer: null,       // New parameter
-      max_leverage: 1.0, 
+      position_size_method: 'fixed',
+      fixed_position_size: 1.0,
+      volatility_target: null,
+      volatility_lookback: 30,
+      volatility_buffer: null,
+      max_leverage: 1.0,
       frequency: defaultFrequency,
-      collapsed: false, // New property to track collapse state
-      entryRulesCollapsed: false, // Added for collapsible rules
-      exitRulesCollapsed: false,  // Added for collapsible rules
+      collapsed: false,
+      entryRulesCollapsed: false,
+      exitRulesCollapsed: false,
     }]);
   };
 
@@ -111,27 +157,22 @@ const QuantiFiBacktestingLab = () => {
     const updatedStrategies = [...strategies];
     updatedStrategies[index][field] = value;
   
-    // Additional logic to reset fields if necessary
     if (field === 'position_size_method') {
       if (value === 'fixed') {
-        // Reset volatility-related fields
         updatedStrategies[index]['volatility_target'] = null;
         updatedStrategies[index]['volatility_buffer'] = null;
         updatedStrategies[index]['volatility_lookback'] = 30;
         updatedStrategies[index]['max_leverage'] = 1.0;
-        // Ensure fixed_position_size has a default value
         if (!updatedStrategies[index]['fixed_position_size']) {
           updatedStrategies[index]['fixed_position_size'] = 1.0;
         }
       } else if (value === 'volatility_target') {
-        // Reset fixed_position_size
         updatedStrategies[index]['fixed_position_size'] = null;
-        // Ensure volatility-related fields have default values
         if (!updatedStrategies[index]['volatility_target']) {
-          updatedStrategies[index]['volatility_target'] = 10.0; // Example default
+          updatedStrategies[index]['volatility_target'] = 10.0;
         }
         if (!updatedStrategies[index]['volatility_buffer']) {
-          updatedStrategies[index]['volatility_buffer'] = 5.0; // Example default
+          updatedStrategies[index]['volatility_buffer'] = 5.0;
         }
         if (!updatedStrategies[index]['volatility_lookback']) {
           updatedStrategies[index]['volatility_lookback'] = 30;
@@ -142,29 +183,19 @@ const QuantiFiBacktestingLab = () => {
       }
     }
   
-    // Add logic to handle updates to the 'frequency' field
     if (field === 'frequency') {
       const selectedFrequency = value;
       const availableFrequencies = dataSource === 'Yahoo Finance'
         ? ['Daily']
         : ['Daily', '4h', '1h', '30m', '15m', '10m', '5m', '1m'];
   
-      // Validate that the selected frequency is available for the current data source
       if (!availableFrequencies.includes(selectedFrequency)) {
-        // If not valid, reset to a default frequency
         updatedStrategies[index]['frequency'] = availableFrequencies[0];
       }
-  
-      // Reset or adjust any dependent fields if necessary
-      // For example, you might want to reset indicators that are not compatible with the new frequency
-      // updatedStrategies[index]['entryRules'] = []; // Optionally reset entry rules
-      // updatedStrategies[index]['exitRules'] = []; // Optionally reset exit rules
     }
   
     setStrategies(updatedStrategies);
   };
-  
-  
 
   const addRule = (strategyIndex, ruleType) => {
     const updatedStrategies = [...strategies];
@@ -182,8 +213,7 @@ const QuantiFiBacktestingLab = () => {
     updatedStrategies[strategyIndex][ruleType].push(newRule);
     setStrategies(updatedStrategies);
   };
-  
-  
+
   const updateRule = (strategyIndex, ruleIndex, ruleType, field, value) => {
     const updatedStrategies = [...strategies];
     const rule = updatedStrategies[strategyIndex][ruleType][ruleIndex];
@@ -197,7 +227,6 @@ const QuantiFiBacktestingLab = () => {
       } else if (value === 'composite') {
         rule.leftIndicator.name = '';
         rule.leftIndicator.params = {};
-        // Do not reset 'expression' to preserve user input
         if (!rule.leftIndicator.expression) {
           rule.leftIndicator.expression = '';
         }
@@ -217,11 +246,9 @@ const QuantiFiBacktestingLab = () => {
       }
     } else if (field === 'leftIndicatorName') {
       rule.leftIndicator.name = value;
-      // Reset params when the indicator name changes
       rule.leftIndicator.params = {};
     } else if (field === 'rightIndicatorName') {
       rule.rightIndicator.name = value;
-      // Reset params when the indicator name changes
       rule.rightIndicator.params = {};
     } else if (field === 'leftIndicatorExpression') {
       rule.leftIndicator.expression = value;
@@ -230,11 +257,9 @@ const QuantiFiBacktestingLab = () => {
     } else if (field === 'useRightIndicator') {
       rule.useRightIndicator = value;
       if (!value) {
-        // If not using a right indicator, reset the right indicator fields
         rule.rightIndicator = { ...indicatorTemplate };
         rule.rightValue = '';
       } else {
-        // If using a right indicator, ensure it's initialized
         if (!rule.rightIndicator) {
           rule.rightIndicator = { ...indicatorTemplate };
         }
@@ -242,13 +267,10 @@ const QuantiFiBacktestingLab = () => {
     } else if (field === 'rightValue') {
       rule.rightValue = value;
     } else {
-      // For other fields like 'operator' and 'logicalOperator'
       rule[field] = value;
     }
     setStrategies(updatedStrategies);
   };
-  
-  
 
   const updateIndicatorParam = (strategyIndex, ruleIndex, ruleType, side, param, value) => {
     const updatedStrategies = [...strategies];
@@ -256,7 +278,6 @@ const QuantiFiBacktestingLab = () => {
     if (!rule[`${side}Indicator`].params) {
       rule[`${side}Indicator`].params = {};
     }
-    // Default 'series' parameter to 'Close' if empty
     if (param === 'series' && !value) {
       rule[`${side}Indicator`].params[param] = 'Close';
     } else {
@@ -264,8 +285,6 @@ const QuantiFiBacktestingLab = () => {
     }
     setStrategies(updatedStrategies);
   };
-  
-  
 
   const removeRule = (strategyIndex, ruleIndex, ruleType) => {
     const updatedStrategies = [...strategies];
@@ -273,19 +292,15 @@ const QuantiFiBacktestingLab = () => {
     setStrategies(updatedStrategies);
   };
 
-  // **Function to Duplicate a Strategy**
   const duplicateStrategy = (strategyIndex) => {
     const strategyToDuplicate = strategies[strategyIndex];
-    // Create a deep copy of the strategy
     const duplicatedStrategy = JSON.parse(JSON.stringify(strategyToDuplicate));
 
-    // Modify the name to indicate it's a copy
     const originalName = duplicatedStrategy.name;
     const copyRegex = / Copy( \d+)?$/;
     let baseName = originalName.replace(copyRegex, '');
     let copyNumber = 1;
 
-    // Check if any existing strategies have the same base name with a copy number
     strategies.forEach((strategy) => {
       const match = strategy.name.match(new RegExp(`^${baseName} Copy( \\d+)?$`));
       if (match) {
@@ -297,40 +312,32 @@ const QuantiFiBacktestingLab = () => {
     });
 
     duplicatedStrategy.name = `${baseName} Copy${copyNumber > 1 ? ' ' + copyNumber : ''}`;
-    duplicatedStrategy.collapsed = false; // Expand the duplicated strategy
+    duplicatedStrategy.collapsed = false;
 
-    // Add the duplicated strategy to the strategies array
     setStrategies([...strategies, duplicatedStrategy]);
   };
-  
+
   const runBacktest = async () => {
     setIsLoading(true);
     setError(null);
   
     try {
-      // Function to process indicators
-      const processIndicator = (indicator) => {
-        return {
-          type: indicator.type,
-          name: indicator.name,
-          params: indicator.params, // Keep params as a dictionary
-          expression: indicator.expression,
-        };
-      };
+      const processIndicator = (indicator) => ({
+        type: indicator.type,
+        name: indicator.name,
+        params: indicator.params,
+        expression: indicator.expression,
+      });
   
-      // Function to process rules
-      const processRules = (rules) => {
-        return rules.map((rule) => ({
-          operator: rule.operator,
-          useRightIndicator: rule.useRightIndicator,
-          rightValue: rule.rightValue,
-          logicalOperator: rule.logicalOperator,
-          leftIndicator: processIndicator(rule.leftIndicator),
-          rightIndicator: rule.useRightIndicator ? processIndicator(rule.rightIndicator) : null,
-        }));
-      };
+      const processRules = (rules) => rules.map((rule) => ({
+        operator: rule.operator,
+        useRightIndicator: rule.useRightIndicator,
+        rightValue: rule.rightValue,
+        logicalOperator: rule.logicalOperator,
+        leftIndicator: processIndicator(rule.leftIndicator),
+        rightIndicator: rule.useRightIndicator ? processIndicator(rule.rightIndicator) : null,
+      }));
   
-      // Prepare strategies data
       const strategiesToSend = strategies.map((strategy) => {
         const strategyData = {
           name: strategy.name,
@@ -354,23 +361,10 @@ const QuantiFiBacktestingLab = () => {
   
         return strategyData;
       });
-  
-      // Log the payload for debugging
-      console.log('Backtest request payload:', {
-        symbol: asset,
-        data_source: dataSource,
-        start: startDate,
-        end: endDate,
-        fees,
-        slippage,
-        strategies: strategiesToSend,
-      });
-  
-      const response = await fetch('http://localhost:8002/api/backtest', {
+
+      const response = await fetch(`${BASE_URL}/api/backtest`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json',},
         body: JSON.stringify({
           symbol: asset,
           data_source: dataSource,
@@ -389,7 +383,6 @@ const QuantiFiBacktestingLab = () => {
   
       const data = await response.json();
       console.log('Backtest API response:', data);
-      console.log('Trades data:', data.trades);
       setBacktestResults(data);
     } catch (err) {
       setError(err.message);
@@ -397,13 +390,21 @@ const QuantiFiBacktestingLab = () => {
       setIsLoading(false);
     }
   };
-  
-  
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-4">QuantiFi Backtesting Lab</h1>
+      {/* Header section */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Typography variant="h4">QuantiFi Backtesting Lab</Typography>
+        <Button
+          variant="outlined"
+          onClick={() => setIsMyBacktestsOpen(true)}
+        >
+          My Backtests
+        </Button>
+      </Box>
 
+      {/* Main content */}
       <BacktestingParameters
         asset={asset}
         setAsset={setAsset}
@@ -431,19 +432,32 @@ const QuantiFiBacktestingLab = () => {
         removeRule={removeRule}
         addRule={addRule}
         toggleStrategyCollapse={toggleStrategyCollapse}
-        duplicateStrategy={duplicateStrategy} // Pass the function as a prop
+        duplicateStrategy={duplicateStrategy}
         dataSource={dataSource}
       />
 
+      {/* Buttons section */}
+      <div className="flex gap-2 mt-4">
+        <PrimaryButton onClick={runBacktest} disabled={isLoading}>
+          {isLoading ? 'Running Backtest...' : 'Run Backtest'}
+        </PrimaryButton>
 
-      <PrimaryButton onClick={runBacktest} disabled={isLoading} sx={{ mt: 4 }}>
-        {isLoading ? 'Running Backtest...' : 'Run Backtest'}
-      </PrimaryButton>
+        {backtestResults && (
+          <PrimaryButton 
+            onClick={() => setIsSaveDialogOpen(true)}
+            disabled={isLoading}
+          >
+            Save Backtest
+          </PrimaryButton>
+        )}
+      </div>
 
+      {/* Error message */}
       {error && (
         <Typography color="error" className="mt-4">{error}</Typography>
       )}
 
+      {/* Results section */}
       {backtestResults && (
         <div>
           <ChartSystem
@@ -456,17 +470,44 @@ const QuantiFiBacktestingLab = () => {
             startDate={startDate}
             endDate={endDate}
           />
-        {backtestResults.metrics && (
+          {backtestResults.metrics && (
             <MetricsTable metrics={backtestResults.metrics} />
-            )}
-        {backtestResults?.trades && backtestResults.trades.length > 0 && (
+          )}
+          {backtestResults?.trades && backtestResults.trades.length > 0 && (
             <>
               <TradesTable trades={backtestResults.trades} />
               <TradeReturnsHistogram trades={backtestResults.trades} />
             </>
           )}
         </div>
-        )}
+      )}
+
+      {/* Dialogs */}
+      <SaveBacktestDialog
+        open={isSaveDialogOpen}
+        onClose={() => {
+          setIsSaveDialogOpen(false);
+          setSaveError(null);
+        }}
+        backtestConfig={{
+          symbol: asset,
+          dataSource: dataSource,
+          startDate: startDate,
+          endDate: endDate,
+          fees: fees,
+          slippage: slippage,
+          strategies: strategies,
+        }}
+        backtestResults={backtestResults}
+        onSave={handleSaveBacktest}
+      />
+
+      <MyBacktestsDialog
+        open={isMyBacktestsOpen}
+        onClose={() => setIsMyBacktestsOpen(false)}
+        accessToken={accessToken}
+        onLoadBacktest={handleLoadBacktest}
+      />
     </div>
   );
 };

@@ -4,7 +4,7 @@ import json
 import logging
 import traceback
 
-from typing     import Dict # List,
+from typing     import Dict, List
 from fastapi    import HTTPException, APIRouter, Depends
 
 from sqlalchemy.orm import Session
@@ -12,20 +12,15 @@ from sqlalchemy.orm import Session
 from app.utils.utils        import numpy_to_python, nan_to_null
 from app.core.database      import get_db
 from app.core.jwt_token     import get_current_user
-#from app.utils.data_fetcher import download_yf_data
 
-#from app.services.backtest.metrics          import metrics_table
-#from app.services.backtest.run_backtest     import run_backtest, Strategy
 from app.services.backtest.trade_analysis   import analyze_all_trades
 
 from app.models.user        import UserSchema
-#from app.models.strategy    import RuleInput
 from app.models.backtest    import BacktestInput, BacktestResult_, BacktestResult, convert_backtest_result_to_input
 
-from app.services.data.data_service import DataService
-from app.services.strategy_service.strategy import StrategyService
-from app.services.backtest.metrics_calculator import PortfolioMetricsCalculator
-from app.utils.utils import numpy_to_python, nan_to_null
+from app.services.data.data_service             import DataService
+from app.services.strategy_service.strategy     import StrategyService
+from app.services.backtest.metrics_calculator   import PortfolioMetricsCalculator
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-@router.get("")
+@router.post("")
 async def backtest_endpoint(input: BacktestInput):
     print(input)
     try:
@@ -70,23 +65,47 @@ async def save_backtest(input: BacktestResult_, user: UserSchema = Depends(get_c
     try:
         backtest_result = BacktestResult(
             email=user.email,
-            symbol=input.symbol,
-            data_source=input.data_source,
-            start=input.start,
-            end=input.end,
-            fees=input.fees,
-            slippage=input.slippage,
-            strategies=json.dumps([s.dict() for s in input.strategies]),
-            sharpe_ratio=input.sharpe_ratio,
-            max_drawdown=input.max_drawdown,
-            cagr=input.cagr
+            name=input.name,
+            config=input.config.dict(),
+            metric=input.metric.dict()
         )
+
         db.add(backtest_result)
         db.commit()
         db.refresh(backtest_result)
     except Exception as e:
         print(f"Backtest error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/delete")
+def delete_backtests(ids: List[int], user: UserSchema = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Delete rows from the 'backtest' table for the given list of IDs.
+    
+    Args:
+        ids (List[int]): List of IDs to delete.
+        db (Session): Database session dependency.
+    
+    Returns:
+        dict: Status message.
+    """
+
+    try:
+        # Query the rows to delete
+        rows_to_delete = db.query(BacktestResult).filter(BacktestResult.id.in_(ids), BacktestResult.email == user.email)
+        
+        # Check if there are rows to delete
+        if rows_to_delete.count() == 0:
+            raise HTTPException(status_code=404, detail="No records found for the given IDs")
+
+        # Delete the rows
+        rows_to_delete.delete(synchronize_session=False)
+        db.commit()
+        
+        return {"message": "Records deleted successfully", "deleted_ids": ids}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 ###################################################################################################
 """ Backtest Function """

@@ -86,10 +86,3 @@ class StrategyInput(BaseModel):
         if values.get('position_size_method') == 'volatility_target' and v is None:
             raise ValueError('volatility_target must be provided when position_size_method is "volatility_target"')
         return v
-
-###################################################################################################
-""" Help Functions """
-###################################################################################################
-
-#def format_strategy(strategy: Dict):
-

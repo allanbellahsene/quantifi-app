@@ -98,8 +98,5 @@
       "fixed_position_size": "1",
       "frequency": "Daily"
     }
-  ],
-  "sharpe_ratio": 1.5,
-  "max_drawdown": 0.1,
-  "cagr": 0.2
+  ]
 }

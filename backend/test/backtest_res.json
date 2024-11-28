@@ -1,0 +1,111 @@
+{
+  "name":"Backtest 1",
+  "config": {
+    "symbol": "SOL-USD",
+    "data_source": "Yahoo Finance",
+    "start": "2020-01-01",
+    "end": "2024-01-01",
+    "fees": 0.5,
+    "slippage": 0.1,
+    "strategies": [
+      {
+        "name": "Strategy 1",
+        "allocation": 100,
+        "positionType": "long",
+        "entryRules": [
+          {
+            "leftIndicator": {
+              "type": "simple",
+              "name": "Close",
+              "params": {},
+              "expression": ""
+            },
+            "operator": ">",
+            "useRightIndicator": true,
+            "rightIndicator": {
+              "type": "simple",
+              "name": "SMA",
+              "params": {"series": "Close", "window": "20"},
+              "expression": ""
+            },
+            "rightValue": "",
+            "logicalOperator": "and"
+          }
+        ],
+        "exitRules": [
+        {
+          "leftIndicator": {
+            "type": "simple",
+            "name": "Close",
+            "params": {},
+            "expression": ""
+          },
+          "operator": "<",
+          "useRightIndicator": true,
+          "rightIndicator": {
+            "type": "simple",
+            "name": "SMA",
+            "params": {"series": "Close", "window": "20"},
+            "expression": ""
+          },
+          "rightValue": "",
+          "logicalOperator": "and"
+        }
+        ],
+        "entryRegimeRules": [
+        {
+        "leftIndicator": {
+        "type": "simple",
+        "name": "Close",
+        "params": {},
+        "expression": ""
+        },
+        "operator": ">",
+        "useRightIndicator": true,
+        "rightIndicator": {
+        "type": "simple",
+        "name": "SMA",
+        "params": {"series": "Close", "window": "50"},
+        "expression": ""
+        },
+        "rightValue": "",
+        "logicalOperator": "and"
+        }
+        ],
+        "exitRegimeRules": [
+          {
+            "leftIndicator": {
+            "type": "simple",
+            "name": "Close",
+            "params": {},
+            "expression": ""
+            },
+            "operator": "<",
+            "useRightIndicator": true,
+            "rightIndicator": {
+            "type": "simple",
+            "name": "SMA",
+            "params": {"series": "Close", "window": "50"},
+            "expression": ""
+            },
+            "rightValue": "",
+            "logicalOperator": "and"
+          }
+        ],
+        "regimeEntryAction": "long",
+        "regimeExitAction": "long",
+        "regimeAsset": "BTC-USD",
+        "active": true,
+        "position_size_method": "fixed",
+        "fixed_position_size": "1",
+        "frequency": "Daily"
+      }
+    ]
+  },
+  "metric":
+  {
+    "sharpe_ratio": 1.5,
+    "max_drawdown": 0.1,
+    "total_performance": 0.2
+  }
+}

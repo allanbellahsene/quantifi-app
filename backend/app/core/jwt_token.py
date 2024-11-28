@@ -46,6 +46,7 @@ def decode_access_token(token: str):
     except JWTError:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
     
+    print(user)
     # Here you would fetch the user from the DB if needed
     return user
     

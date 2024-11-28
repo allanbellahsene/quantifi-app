@@ -1,9 +1,8 @@
 # app.models.backtest.py
-import json
-
-from typing     import List
-from pydantic   import BaseModel
-from sqlalchemy import Column, Integer, String, JSON
+from typing         import List
+from pydantic       import BaseModel
+from sqlalchemy     import Column, Integer, String, JSON, DateTime
+from sqlalchemy.sql import func
 
 from app.core.database      import Base
 from app.models.strategy    import StrategyInput
@@ -29,17 +28,15 @@ class BacktestInput(BaseModel):
     slippage: float
     strategies: List[StrategyInput]
 
-class BacktestResult_(BaseModel):
-    symbol: str
-    data_source: str
-    start: str
-    end: str
-    fees: float
-    slippage: float
-    strategies: List[StrategyInput]
+class Metrics(BaseModel):
+    total_performance: float
     sharpe_ratio: float
     max_drawdown: float
-    cagr: float
+
+class BacktestResult_(BaseModel):
+    name: str
+    config: BacktestInput
+    metric: Metrics
 
 ###################################################################################################
 """ Backtest SQLAlchemy Model """
@@ -58,16 +55,27 @@ class BacktestResult(Base):
     
     id              = Column(Integer, primary_key=True, index=True)
     email           = Column(String, index=True)
-    symbol          = Column(String, index=True)
-    data_source     = Column(String)
-    start           = Column(String)
-    end             = Column(String)
-    fees            = Column(Integer)
-    slippage        = Column(Integer)
-    strategies      = Column(JSON)
-    sharpe_ratio    = Column(Integer)
-    max_drawdown    = Column(Integer)
-    cagr            = Column(Integer)
+    name            = Column(String)
+    config          = Column(JSON)
+    metric          = Column(JSON)
+    created_at      = Column(DateTime, server_default=func.now())  # Automatically sets current timestamp when the row is created
+    last_updated    = Column(DateTime, onupdate=func.now())        # Automatically updates the timestamp whenever the row is updated
+
+    def set_config(self, config: BacktestInput):
+        """Set the config using a Pydantic model."""
+        self.config = config.dict()
+
+    def get_config(self) -> BacktestInput:
+        """Get the config as a Pydantic model."""
+        return BacktestInput(**self.config)
+    
+    def set_metric(self, metric: Metrics):
+        """Set the metric using a Pydantic model."""
+        self.metric = metric.dict()
+
+    def get_metric(self) -> Metrics:
+        """Get the metric as a Pydantic model."""
+        return Metrics(**self.metric)
 
 ###################################################################################################
 """ Help Functions """
@@ -78,19 +86,4 @@ def convert_backtest_result_to_input(backtest_result: BacktestResult) -> Backtes
     if not backtest_result:
         return None
 
-    # Convert the 'strategies' JSON field to a list of StrategyInput objects
-    print(json.loads(backtest_result.strategies))
-    strategies: List[StrategyInput] = [StrategyInput(**s) for s in json.loads(backtest_result.strategies)]
-
-    # Create an instance of BacktestInput using data from BacktestResult
-    backtest_input = BacktestInput(
-        symbol=backtest_result.symbol,
-        data_source=backtest_result.data_source,
-        start=backtest_result.start,
-        end=backtest_result.end,
-        fees=backtest_result.fees,
-        slippage=backtest_result.slippage,
-        strategies=strategies
-    )
-
-    return backtest_input
+    return BacktestInput(**backtest_result.config)
