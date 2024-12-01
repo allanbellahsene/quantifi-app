@@ -64,7 +64,7 @@ def set_cookie_token(response: Response, user: UserSchema):
         value=access_token,
         httponly=True,
         secure=True,  # Set to True in production
-        samesite="Strict",  # or "Lax" to balance security and usability
+        samesite="None", #"Strict",  # or "Lax" to balance security and usability
         path="/",  # Make the cookie accessible to all paths
     )
     

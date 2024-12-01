@@ -51,6 +51,7 @@ curl -X POST "$BASE_URL/api/backtest" \
      -b "access_token=$TOKEN" \
      -d @backtest.json | jq
 
+'''
 echo -e "\nSaving backtest..."
 curl -X POST "$BASE_URL/api/backtest/save" \
      -H "Content-Type: application/json" \
@@ -67,6 +68,7 @@ echo -e "\nAccessing the backtest endpoint with the token to get saved backtest.
 curl -X GET "$BASE_URL/api/backtest/result/9" \
      -H "Content-Type: application/json" \
      -b "access_token=$TOKEN"
+'''
 
 '''
 echo -e "\Delete backtest..."

@@ -1,1 +1,1 @@
-export const BASE_URL = "http://54.221.75.9:8001"; //'http://localhost:8001';
+export const BASE_URL = "https://api.quantifi-app.com"; //'http://localhost:8001';

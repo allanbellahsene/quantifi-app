@@ -16,7 +16,7 @@ app = FastAPI(title="QuantiFi API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "https://dev.quantifi-app.com", "https://quantifi-app.com"],#["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,8 +47,9 @@ app.include_router(price.router, prefix="/api/price")
 
 if __name__ == "__main__":
     import uvicorn
-    host = "0.0.0.0"
-    port = 8001
+    
+    host            = "0.0.0.0"
+    port            = 8001
     
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         is_port_in_use = s.connect_ex((host, port)) == 0

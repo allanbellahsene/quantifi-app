@@ -85,10 +85,10 @@ const QuantiFiBacktestingLab = ({ accessToken }) => {
         withCredentials: true,
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to save backtest');
-      }
+      //if (!response.ok) {
+      //  const error = await response.json();
+      //  throw new Error(error.detail || 'Failed to save backtest');
+      //}
 
       setIsSaveDialogOpen(false);
       // You might want to show a success notification here
